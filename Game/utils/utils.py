@@ -3,11 +3,17 @@ import os
 import json
 
 BASE_IMG_PATH = "Game/assets/"
+TILE_SIZE = 48
 
-
-def load_image(path, colorkey=(0, 0, 0)):
-    img = pygame.image.load(BASE_IMG_PATH + path).convert()
-    img.set_colorkey(colorkey)
+def load_image(path, colorkey=None):
+    img = pygame.image.load(BASE_IMG_PATH + path)
+    # preserve per-pixel alpha when available
+    try:
+        img = img.convert_alpha()
+    except Exception:
+        img = img.convert()
+    if colorkey is not None:
+        img.set_colorkey(colorkey)
     if "icon_" in path:
         img = pygame.transform.scale(img, (16, 16))
     return img
@@ -25,53 +31,61 @@ def load_json_as_dict(path):
     return data
 
 class SpriteSheet:
-    def __init__(self, path, tile_size=None, cut={"0":(0, 0, 64, 64)}):
+    def __init__(self, path, tile_size=None, cut=None, colorkey=None):
         self.images = {}
         self.path = path
         self.tile_size = tile_size
+        self.colorkey = colorkey
+
+        # avoid mutable default; if provided as JSON lists, keep them but coerce later
+        self.cut = cut if cut is not None else {"0": (0, 0, 64, 64)}
 
         if tile_size:
             self.get_images()
         else:
-            self.cut = cut
             self.cut_images()
 
     def get_images(self):
-        base = load_image(self.path, colorkey=(255, 255, 255))
+        base = load_image(self.path, colorkey=self.colorkey)
         rect = base.get_rect()
 
         for y in range(0, rect.height, self.tile_size):
             for x in range(0, rect.width, self.tile_size):
-                temp = pygame.Surface((self.tile_size, self.tile_size))
+                temp = pygame.Surface((self.tile_size, self.tile_size), flags=pygame.SRCALPHA)
                 temp.blit(base, (0, 0), pygame.Rect(x, y, self.tile_size, self.tile_size))
                 self.images[(x, y)] = temp
 
     def cut_images(self):
-        base = load_image(self.path, colorkey=(255, 255, 255))
-        for key, (x, y, w, h) in self.cut.items():
+        base = load_image(self.path, colorkey=self.colorkey)
+        for key, rect_vals in self.cut.items():
+            # be defensive: allow JSON lists/tuples and skip invalid entries
+            try:
+                x, y, w, h = tuple(rect_vals)
+            except Exception:
+                continue
             if w > 0 and h > 0:
-                temp = pygame.Surface((w, h))
+                temp = pygame.Surface((w, h), flags=pygame.SRCALPHA)
                 temp.blit(base, (0, 0), pygame.Rect(x, y, w, h))
-                temp.set_colorkey((255, 255, 255))
-                self.images[key] = temp
+                self.images[str(key)] = temp
 
-    def get_image(self, index):
-        pass
+    def get_images_list(self):
+        sprites = []
+        for key in self.images.keys():
+            sprites.append(self.images[key])
+        return sprites
 
     def get_debug_image(self):
-        base = load_image(self.path, colorkey=(255, 255, 255))
-        rect = base.get_rect()
-        pygame.draw.rect(base, (255, 0, 0), rect, 4)
+        base = load_image(self.path, colorkey=self.colorkey)
+        base_copy = base.copy()
+        rect = base_copy.get_rect()
+        pygame.draw.rect(base_copy, (255, 0, 0), rect, 4)
 
         for key, (x, y, w, h) in self.cut.items():
             if w > 0 and h > 0:
-                temp = pygame.Surface((w, h))
-                temp.blit(base, (0, 0), pygame.Rect(x, y, w, h))
-                temp.set_colorkey((255, 255, 255))
                 temp_rect = pygame.Rect(x, y, w, h)
-                pygame.draw.rect(base, (255, 0, 0), temp_rect, 4)
+                pygame.draw.rect(base_copy, (255, 0, 0), temp_rect, 4)
 
-        return base
+        return base_copy
 
 class Animation:
     def __init__(self, images, img_dur=5, loop=True):

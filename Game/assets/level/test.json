@@ -1,0 +1,19 @@
+{
+  "width": 20,
+  "height": 15,
+  "tile_size": 48,
+  "environment": "cave",
+  "layers": [
+    {
+      "type": "tilelayer",
+      "name": "Ground",
+      "data": [
+        {"x":2, "y":10, "z": 5, "type": "platform" ,"variant": 0, "properties": ["solid"]},
+        {"x":3, "y":10, "z": 5, "type": "platform" ,"variant": 0, "properties": ["solid"]},
+        {"x":4, "y":10, "z": 5, "type": "platform" ,"variant": 0, "properties": ["solid"]},
+        {"x":5, "y":10, "z": 5, "type": "platform" ,"variant": 0, "properties": ["solid"]},
+        {"x":6, "y":10, "z": 5, "type": "platform" ,"variant": 0, "properties": ["solid"]}
+      ]
+    }
+  ]
+}

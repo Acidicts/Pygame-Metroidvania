@@ -27,3 +27,10 @@ class SpriteGroup(pygame.sprite.Group):
     def empty(self):
         self.sprite_dict.clear()
         super().empty()
+
+    def draw(self, surface, offset):
+        for sprite in self.sprites():
+            x, y = sprite.rect.topleft
+            x += offset[0]
+            y += offset[1]
+            surface.blit(sprite.image, x, y)

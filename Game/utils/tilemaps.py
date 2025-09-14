@@ -1,5 +1,6 @@
 import pygame
 import json
+from Game.utils.config import get_config
 
 AUTOTILE_MAP = {
     tuple(sorted([(1, 0), (0, 1)])): 0,
@@ -16,97 +17,110 @@ AUTOTILE_MAP = {
 NEIGHBOR_OFFSET = [(-1, 0), (-1, -1), (0, -1), (1, -1), (1, 0), (0, 0), (-1, 1), (0, 1), (1, 1)]
 PHYSICS_TILES = ['solid']
 
+scale_sizing = {
+    "cave": {
+        "platform": {
+            "0": (54, 48),
+            "1": (96, 24),
+            "2": (154, 48),
+            "3": (48, 24),
+            "4": (24, 24),
+            "5": (48, 24),
+            "6": (24, 24),
+            "7": (48, 24),
+            "8": (48, 48),
+        },
+    }
+}
+
 class TileMap:
-    def __init__(self, game, tile_size=16):
+    def __init__(self, game, tile_size=48):
         self.game = game
         self.tile_size = tile_size
         self.tile_map = {}
         self.off_grid_tiles = []
 
-    def extract(self, id_pairs, keep=False):
-        matches = []
-        del_list = []
-        for tile in self.off_grid_tiles.copy():
-            if (tile['type'], tile['variant']) in id_pairs:
-                matches.append(tile.copy())
-                if not keep:
-                    self.off_grid_tiles.remove(tile)
+    def load_map(self, path):
+        with open(path, 'r') as f:
+            data = json.load(f)
 
-        for loc in self.tile_map:
-            tile = self.tile_map[loc]
-            if (tile['type'], tile['variant']) in id_pairs:
-                matches.append(tile.copy())
-                matches[-1]['pos'] = matches[-1]['pos'].copy()
-                matches[-1]['pos'][0] *= self.tile_size
-                matches[-1]['pos'][1] *= self.tile_size
-                if not keep:
-                    del_list.append(loc)
+        self.width = data['width']
+        self.height = data['height']
+        self.tile_size = data['tile_size']
 
-        for tile in range(len(del_list)):
-            del self.tile_map[del_list[tile]]
+        for layer in data['layers']:
+            if layer['type'] == 'tilelayer':
+                for tile in layer['data']:
+                    x, y, z = tile['x'], tile['y'], tile['z']
+                    tile_type = tile['type']
+                    variant = tile.get('variant', 0)
+                    self.tile_map[(x, y)] = {
+                        'x': int(x),
+                        'y': int(y),
+                        'z': int(z),
+                        'environment': data['environment'],
+                        'type': tile_type,
+                        'variant': variant,
+                        'properties': tile["properties"]
+                    }
 
-        return matches
+            elif layer['type'] == 'objectgroup':
+                for obj in layer['objects']:
+                    tile = {
+                        'id': obj.get('gid', 0),
+                        'x': int(obj['x']),
+                        'y': int(obj['y']),
+                        'z': obj['z'],
+                        'width': obj.get('width', self.tile_size),
+                        'height': obj.get('height', self.tile_size),
+                        'properties': obj.get('properties', {})
+                    }
+                    self.off_grid_tiles.append(tile)
 
-    def tiles_around(self, pos):
-        tiles = []
-        tile_loc = (int(pos[0] // self.tile_size), int(pos[1] // self.tile_size))
-        for offset in NEIGHBOR_OFFSET:
-            check_loc = str(tile_loc[0] + offset[0]) + ";" + str(tile_loc[1] + offset[1])
-            if check_loc in self.tile_map:
-                tiles.append(self.tile_map[check_loc])
+    def get_tiles_around(self, pos):
+        x, y = pos
+        grid_x = x // self.tile_size
+        grid_y = y // self.tile_size
+
+        tiles = {}
+        for dx, dy in NEIGHBOR_OFFSET:
+            neighbor_pos = (grid_x + dx, grid_y + dy)
+            if neighbor_pos in self.tile_map:
+                neighbor_tile = self.tile_map[neighbor_pos]
+                props = neighbor_tile.get('properties', [])
+                try:
+                    is_solid = ('solid' in props)
+                except Exception:
+                    is_solid = False
+
+                if is_solid:
+                    tiles[(dx, dy)] = neighbor_tile
+                else:
+                    tiles[(dx, dy)] = None
+            else:
+                tiles[(dx, dy)] = None
         return tiles
 
-    def save(self, path):
-        f = open(path, 'w')
-        json.dump({'tilemap': self.tile_map, 'tile_size': self.tile_size, 'offgrid': self.off_grid_tiles}, f)
-        f.close()
+    def render(self, surface, camera_offset, layer):
+        for tile in self.tile_map.values():
+            if tile.get("z") != layer:
+                continue
 
-    def load(self, path):
-        f = open(path, 'r')
-        map_data = json.load(f)
-        f.close()
+            env = tile.get('environment')
+            ttype = tile.get('type')
+            variant = str(tile.get('variant', 0))
 
-        self.tile_map = map_data['tilemap']
-        self.tile_size = map_data['tile_size']
-        self.off_grid_tiles = map_data['offgrid']
+            tile_assets = self.game.assets.get(env, {})
+            type_assets = tile_assets.get(ttype) if tile_assets else None
+            if not type_assets:
+                continue
 
-    def solid_check(self,pos):
-        tile_loc = str(int(pos[0] // self.tile_size)) + ';' + str(int(pos[1] // self.tile_size))
-        if tile_loc in self.tile_map:
-            if self.tile_map[tile_loc]['type'] in PHYSICS_TILES:
-                return self.tile_map[tile_loc]
+            img = type_assets.images.get(variant)
+            if img is None:
+                continue
 
-    def physics_rect_around(self, pos):
-        r = []
-        for tile in self.tiles_around(pos):
-            if tile['type'] in PHYSICS_TILES:
-                rect = tile['pos'][0] * self.tile_size, tile['pos'][1] * self.tile_size, self.tile_size, self.tile_size
-                r.append(pygame.Rect(rect))
-        return r
+            img = pygame.transform.scale(img, scale_sizing.get(env, {}).get(ttype, {}).get(variant, (self.tile_size, self.tile_size)))
 
-    def autotile(self):
-        for loc in self.tile_map:
-            tile = self.tile_map[loc]
-            neighbors = set()
-            for shift in [(1, 0), (-1, 0), (0, -1), (0, 1)]:
-                check_loc = str(tile['pos'][0] + shift[0]) + ';' + str(tile['pos'][1] + shift[1])
-                if check_loc in self.tile_map:
-                    if self.tile_map[check_loc]['type'] == tile['type']:
-                        neighbors.add(shift)
-            neighbors = tuple(sorted(neighbors))
-            if (tile['type'] in AUTOTILE_TYPES) and (neighbors in AUTOTILE_MAP):
-                tile['variant'] = AUTOTILE_MAP[neighbors]
-
-    def render(self, surf, offset=(0, 0)):
-        for x in range(offset[0] // self.tile_size, (offset[0] + surf.get_width()) // self.tile_size + 1):
-            for y in range(offset[1] // self.tile_size, (offset[1] + surf.get_height()) // self.tile_size + 1):
-                loc = str(x) + ';' + str(y)
-                if loc in self.tile_map:
-                    tile = self.tile_map[loc]
-                    t = self.game.assets[tile['type']][tile['variant']]
-                    p = (tile['pos'][0] * self.tile_size - offset[0], tile['pos'][1] * self.tile_size - offset[1])
-                    surf.blit(t, p)
-
-        for tile in self.off_grid_tiles:
-            surf.blit(self.game.assets[tile['type']][tile['variant']], (tile['pos'][0] - offset[0],
-                      tile['pos'][1] - offset[1]))
+            pos = (tile['x'] * self.tile_size - camera_offset[0], tile['y'] * self.tile_size - camera_offset[1])
+            pos = (int(pos[0]) + self.game.camera.offset.x, int(pos[1]) + self.game.camera.offset.y)
+            surface.blit(img, pos)

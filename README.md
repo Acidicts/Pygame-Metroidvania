@@ -17,3 +17,4 @@ And More!
 
 Credits:
 - Tiles and plants https://maaot.itch.io/
+- Player Character https://jesshiyoo.itch.io/little-riven
