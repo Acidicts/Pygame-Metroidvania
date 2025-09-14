@@ -119,8 +119,26 @@ class TileMap:
             if img is None:
                 continue
 
+            # Scale the tile image according to the scale_sizing or default to tile_size
             img = pygame.transform.scale(img, scale_sizing.get(env, {}).get(ttype, {}).get(variant, (self.tile_size, self.tile_size)))
 
-            pos = (tile['x'] * self.tile_size - camera_offset[0], tile['y'] * self.tile_size - camera_offset[1])
-            pos = (int(pos[0]) + self.game.camera.offset.x, int(pos[1]) + self.game.camera.offset.y)
-            surface.blit(img, pos)
+            # Calculate the position in world coordinates
+            world_pos = (tile['x'] * self.tile_size, tile['y'] * self.tile_size)
+
+            # Apply camera offset to get screen coordinates
+            screen_pos = (int(world_pos[0] - self.game.camera.offset.x), int(world_pos[1] - self.game.camera.offset.y))
+
+            # Draw the tile at the screen position
+            surface.blit(img, screen_pos)
+
+            # Debug: draw collision box for solid tiles (only if enabled in config)
+            from Game.utils.config import get_config
+            config = get_config()
+            if 'solid' in tile.get('properties', []) and config.get("debug", {}).get("show_platform_hitboxes", False):
+                debug_rect = pygame.Rect(
+                    screen_pos[0],
+                    screen_pos[1],
+                    self.tile_size,
+                    self.tile_size
+                )
+                pygame.draw.rect(surface, (0, 255, 0), debug_rect, 1)

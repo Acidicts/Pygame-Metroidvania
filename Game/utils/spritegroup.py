@@ -31,6 +31,6 @@ class SpriteGroup(pygame.sprite.Group):
     def draw(self, surface, offset):
         for sprite in self.sprites():
             x, y = sprite.rect.topleft
-            x += offset[0]
-            y += offset[1]
+            x -= offset[0]
+            y -= offset[1]
             surface.blit(sprite.image, x, y)

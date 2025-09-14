@@ -229,12 +229,14 @@ class Player(Sprite):
     def move(self, dt):
         old_x, old_y = self.rect.x, self.rect.y
 
+        # Move horizontally first
         if abs(self.velocity.x) > 0.1:
             self.rect.x += self.velocity.x * dt
             if self.check_collisions():
                 self.rect.x = old_x
                 self.velocity.x = 0
 
+        # Then move vertically
         if abs(self.velocity.y) > 0.1:
             old_y = self.rect.y
             self.rect.y += self.velocity.y * dt
@@ -251,16 +253,48 @@ class Player(Sprite):
                 self.collisions["bottom"] = False
                 self.collisions["top"] = False
 
+        # Update camera to follow player
+        if hasattr(self.game, 'camera'):
+            self.game.camera.update(self)
+
     def check_collisions(self):
+        # Convert player's world position to tile coordinates
         left_tile = self.rect.left // self.tilemap.tile_size
         right_tile = (self.rect.right - 1) // self.tilemap.tile_size
         top_tile = self.rect.top // self.tilemap.tile_size
         bottom_tile = (self.rect.bottom - 1) // self.tilemap.tile_size
 
-        for tile_x in range(left_tile, right_tile + 1):
+        # Check ground collision only when falling
+        if self.velocity.y >= 0:  # Only check for ground when falling
+            # Only check the tiles directly below the player's feet
+            ground_y = bottom_tile
+            for tile_x in range(left_tile, right_tile + 1):
+                if (tile_x, ground_y) in self.tilemap.tile_map:
+                    tile = self.tilemap.tile_map[(tile_x, ground_y)]
+                    if 'solid' in tile.get('properties', []):
+                        # Calculate the exact top of the tile
+                        tile_top = ground_y * self.tilemap.tile_size
+
+                        # If player's feet are very close to or just below the platform top
+                        if self.rect.bottom >= tile_top and self.rect.bottom <= tile_top + 10:
+                            # Snap to the top of the platform
+                            self.rect.bottom = tile_top
+                            return True
+
+        # Check ceiling collision
+        if self.velocity.y < 0:  # Only check for ceiling when jumping up
+            for tile_x in range(left_tile, right_tile + 1):
+                if (tile_x, top_tile) in self.tilemap.tile_map:
+                    tile = self.tilemap.tile_map[(tile_x, top_tile)]
+                    if 'solid' in tile.get('properties', []):
+                        return True
+
+        # Check wall collisions
+        if abs(self.velocity.x) > 0:
+            wall_x = right_tile if self.velocity.x > 0 else left_tile
             for tile_y in range(top_tile, bottom_tile + 1):
-                if (tile_x, tile_y) in self.tilemap.tile_map:
-                    tile = self.tilemap.tile_map[(tile_x, tile_y)]
+                if (wall_x, tile_y) in self.tilemap.tile_map:
+                    tile = self.tilemap.tile_map[(wall_x, tile_y)]
                     if 'solid' in tile.get('properties', []):
                         return True
 
@@ -272,7 +306,20 @@ class Player(Sprite):
             if self.attributes["flipped"]:
                 display_image = pygame.transform.flip(self.image, True, False)
 
-            surf.blit(display_image, self.visual_rect)
+            # Apply camera offset to the visual rect position for screen rendering
+            screen_pos = (self.visual_rect.x - self.game.camera.offset.x,
+                         self.visual_rect.y - self.game.camera.offset.y)
+            surf.blit(display_image, screen_pos)
 
-            # pygame.draw.rect(surf, (255, 0, 0), self.rect, 2)
-            # pygame.draw.rect(surf, (0, 0, 255), self.visual_rect, 1)
+            # Debug: draw collision boxes with camera offset applied (only if enabled in config)
+            from Game.utils.config import get_config
+            config = get_config()
+            if config.get("debug", {}).get("show_collision_boxes", False):
+                screen_collision_rect = (self.rect.x - self.game.camera.offset.x,
+                                       self.rect.y - self.game.camera.offset.y,
+                                       self.rect.width, self.rect.height)
+                screen_visual_rect = (self.visual_rect.x - self.game.camera.offset.x,
+                                    self.visual_rect.y - self.game.camera.offset.y,
+                                    self.visual_rect.width, self.visual_rect.height)
+                pygame.draw.rect(surf, (255, 0, 0), screen_collision_rect, 2)
+                pygame.draw.rect(surf, (0, 0, 255), screen_visual_rect, 1)

@@ -7,16 +7,14 @@ class Camera:
         self.height = height
 
     def apply(self, entity):
-        return entity.rect.move(self.offset)
+        return pygame.Rect(
+            entity.rect.x - self.offset.x,
+            entity.rect.y - self.offset.y,
+            entity.rect.width,
+            entity.rect.height
+        )
 
     def update(self, target):
-        x = -target.rect.centerx + int(self.width / 2)
-        y = -target.rect.centery + int(self.height / 2)
-
-        # Limit scrolling to map size
-        x = min(0, x)  # Left
-        y = min(0, y)  # Top
-        x = max(-(self.width - self.width), x)  # Right
-        y = max(-(self.height - self.height), y)  # Bottom
-
-        self.offset = (x, y)
+        # Center the camera on the target
+        self.offset.x = target.rect.centerx - (self.width // 2)
+        self.offset.y = target.rect.centery - (self.height // 2)
