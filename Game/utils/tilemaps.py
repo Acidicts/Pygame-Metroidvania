@@ -51,31 +51,38 @@ class TileMap:
         for layer in data['layers']:
             if layer['type'] == 'tilelayer':
                 for tile in layer['data']:
-                    x, y, z = tile['x'], tile['y'], tile['z']
-                    tile_type = tile['type']
-                    variant = tile.get('variant', 0)
-                    self.tile_map[(x, y)] = {
-                        'x': int(x),
-                        'y': int(y),
-                        'z': int(z),
-                        'environment': data['environment'],
-                        'type': tile_type,
-                        'variant': variant,
-                        'properties': tile["properties"]
-                    }
+                    if "repeat" in tile["properties"]:
+                        print(f"Loading repeat tile: variant {tile['variant']}, pos ({tile['x']}, {tile['y']}), size {tile['w']}x{tile['h']}")
+                        for x in range(tile["w"]):
+                            for y in range(tile["h"]):
+                                world_x = int(tile['x'] + x)
+                                world_y = int(tile['y'] + y)
+                                print(f"  Creating tile at ({world_x}, {world_y})")
+                                self.tile_map[(world_x, world_y)] = {
+                                    'x': world_x,
+                                    'y': world_y,
+                                    'z': int(tile['z']),
+                                    'environment': data['environment'],
+                                    'type': tile["type"],
+                                    'variant': tile["variant"],
+                                    'properties': tile["properties"]
+                                }
+                    else:
+                        x, y, z = tile['x'], tile['y'], tile['z']
+                        self.tile_map[(x, y)] = {
+                            'x': int(x),
+                            'y': int(y),
+                            'z': int(z),
+                            'environment': data['environment'],
+                            'type': tile["type"],
+                            'variant': tile["variant"],
+                            'properties': tile["properties"]
+                        }
 
-            elif layer['type'] == 'objectgroup':
-                for obj in layer['objects']:
-                    tile = {
-                        'id': obj.get('gid', 0),
-                        'x': int(obj['x']),
-                        'y': int(obj['y']),
-                        'z': obj['z'],
-                        'width': obj.get('width', self.tile_size),
-                        'height': obj.get('height', self.tile_size),
-                        'properties': obj.get('properties', {})
-                    }
-                    self.off_grid_tiles.append(tile)
+        print(f"Total tiles loaded: {len(self.tile_map)}")
+        for pos, tile in self.tile_map.items():
+            if 'solid' in tile.get('properties', []):
+                print(f"Solid tile at {pos}: variant {tile['variant']}")
 
     def get_tiles_around(self, pos):
         x, y = pos
@@ -119,8 +126,8 @@ class TileMap:
             if img is None:
                 continue
 
-            # Scale the tile image according to the scale_sizing or default to tile_size
-            img = pygame.transform.scale(img, scale_sizing.get(env, {}).get(ttype, {}).get(variant, (self.tile_size, self.tile_size)))
+            # For repeat tiles, render each tile at its individual position with standard tile size
+            img = pygame.transform.scale(img, (self.tile_size, self.tile_size))
 
             # Calculate the position in world coordinates
             world_pos = (tile['x'] * self.tile_size, tile['y'] * self.tile_size)

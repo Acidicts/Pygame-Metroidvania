@@ -18,12 +18,14 @@ class Game:
         pygame.display.set_caption("Metroidvania Game")
         self.running = True
 
-        self.assets = {}
-        self.setup()
-
         self.camera = Camera(*get_config()["resolution"])
         self.tilemap = TileMap(self, tile_size=48)
         self.sprite_group = SpriteGroup()
+
+        # Load assets after pygame display is initialized
+        self.assets = {}
+        self.setup()
+
         self.player = Player(pos=(get_config()["resolution"][0]/2, get_config()["resolution"][1]/2), game=self, tilemap=self.tilemap)
         self.num = 0
 

@@ -4,5 +4,9 @@
     5,
     10
   ],
-  "resolution": [800, 600]
+  "resolution": [800, 600],
+  "debug": {
+    "show_collision_boxes": true,
+    "show_platform_hitboxes": true
+  }
 }

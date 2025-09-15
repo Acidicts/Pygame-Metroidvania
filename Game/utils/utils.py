@@ -11,7 +11,8 @@ def load_image(path, colorkey=None):
     try:
         img = img.convert_alpha()
     except Exception:
-        img = img.convert()
+        # If no display mode is set, don't convert
+        pass
     if colorkey is not None:
         img.set_colorkey(colorkey)
     if "icon_" in path:

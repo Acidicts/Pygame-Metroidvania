@@ -6,7 +6,9 @@ from Game.utils.utils import SpriteSheet
 class Player(Sprite):
     def __init__(self, img=pygame.surface.Surface((32, 32)), pos=(0, 0), id=None, game=None, tilemap=None):
         super().__init__(img, pos, id)
-        self.speed = 200
+        self.max_speed = 200
+        self.acceleration = 1000  # Increased for more responsive acceleration
+        self.friction = 1200      # Increased for less slippery deceleration
         self.velocity = pygame.math.Vector2(0, 0)
 
         self.tilemap = tilemap
@@ -19,7 +21,7 @@ class Player(Sprite):
             "fall": (SpriteSheet("little_riven/Fall.png", tile_size=144, colorkey=(0, 0, 0)), 15, True),
             "hurt": (SpriteSheet("little_riven/Hurt.png", tile_size=144, colorkey=(0, 0, 0)), 15, False),
             "idle_break": (SpriteSheet("little_riven/Idle Break.png", tile_size=144, colorkey=(0, 0, 0)), 30, False),
-            "jump": (SpriteSheet("little_riven/Jump.png", tile_size=144, colorkey=(0, 0, 0)), 5, False),
+            "jump": (SpriteSheet("little_riven/Jump.png", tile_size=144, colorkey=(0, 0, 0)), 5, True),
             "run": (SpriteSheet("little_riven/Run.png", tile_size=144, colorkey=(0, 0, 0)), 10, True),
             "slash": (SpriteSheet("little_riven/Slash.png", tile_size=144, colorkey=(0, 0, 0)), 20, False),
             "smoke_in": (SpriteSheet("little_riven/Smoke In.png", tile_size=144, colorkey=(0, 0, 0)), 10, False),
@@ -70,23 +72,40 @@ class Player(Sprite):
         keys = pygame.key.get_pressed()
 
         if self.attributes["can_move"]:
-            self.velocity.x = 0
-            self.velocity.x += (int(keys[pygame.K_RIGHT]) - int(keys[pygame.K_LEFT])) * 200
+            # Get input direction
+            input_direction = int(keys[pygame.K_RIGHT]) - int(keys[pygame.K_LEFT])
+
+            # Apply acceleration or friction
+            if input_direction != 0:
+                # Accelerate in the input direction
+                self.velocity.x += input_direction * self.acceleration * (1/60)  # Assuming 60 FPS
+                # Clamp to max speed
+                self.velocity.x = max(-self.max_speed, min(self.max_speed, self.velocity.x))
+            else:
+                # Apply friction when no input
+                if abs(self.velocity.x) > self.friction * (1/60):
+                    friction_direction = -1 if self.velocity.x > 0 else 1
+                    self.velocity.x += friction_direction * self.friction * (1/60)
+                else:
+                    self.velocity.x = 0
 
         if keys[pygame.K_SPACE] and self.attributes["jumps"] >= 1 and self.attributes["can_move"]:
             self.velocity.y = -self.attributes["jump_strength"]
             self.attributes["jumps"] -= 1
-            self.animation = "jump"
             self.attributes["jumping"] = True
         elif not keys[pygame.K_SPACE] and self.velocity.y < 0:
             self.velocity.y *= 0.5
+
+        if self.velocity.y < 0 and self.animation != "jump":
+            self.animation = "jump"
+            self.frame = 0
 
         if self.velocity.x > 0:
             self.attributes["flipped"] = False
         elif self.velocity.x < 0:
             self.attributes["flipped"] = True
 
-        if self.attributes["jumping"] and not keys[pygame.K_SPACE]:
+        if self.attributes["jumping"] and self.velocity.y < 0:
             self.attributes["jumping"] = False
 
     def update(self, dt):
@@ -96,20 +115,45 @@ class Player(Sprite):
             self.velocity.y += self.gravity * dt * 60
             self.velocity.y = min(self.velocity.y, self.max_fall_speed)
 
+        # Store position before movement to check if we actually moved
+        old_x = self.rect.x
+
         self.move(dt)
 
+        # Check if we actually moved horizontally (not just had velocity)
+        actually_moved_x = abs(self.rect.x - old_x) > 0.1
+
+        # Handle animations based on player state
         if self.collisions["bottom"]:
             self.attributes["jumps"] = self.attributes["max_jumps"]
-            if self.velocity.x != 0 and self.attributes["can_move"]:
-                self.animation = "run"
-                self.attributes["idle_timer"] = 0
-            elif self.attributes["can_move"] and self.animation not in ["idle_break"]:
-                self.animation = "idle"
             self.attributes["falling"] = False
+
+            # Ground-based animations - always update when on ground
+            if self.attributes["can_move"]:
+                if actually_moved_x:
+                    if self.animation != "run":
+                        self.animation = "run"
+                        self.frame = 0
+                    self.attributes["idle_timer"] = 0
+                else:
+                    # Only switch to idle if not in a special animation
+                    if self.animation not in ["idle_break"]:
+                        if self.animation != "idle":
+                            self.animation = "idle"
+                            self.frame = 0
         else:
+            # Air-based animations
             if self.velocity.y > 0:
-                self.animation = "fall"
+                # Falling
+                if self.animation != "fall":
+                    self.animation = "fall"
+                    self.frame = 0
                 self.attributes["idle_timer"] = 0
+            elif self.velocity.y < 0:
+                # Jumping up
+                if self.animation != "jump":
+                    self.animation = "jump"
+                    self.frame = 0
 
         anim_data = self.animations[self.animation]
         sprite_sheet, frame_duration, is_looping = anim_data
@@ -232,7 +276,8 @@ class Player(Sprite):
         # Move horizontally first
         if abs(self.velocity.x) > 0.1:
             self.rect.x += self.velocity.x * dt
-            if self.check_collisions():
+            # Check for wall collisions
+            if self.check_wall_collisions():
                 self.rect.x = old_x
                 self.velocity.x = 0
 
@@ -240,9 +285,8 @@ class Player(Sprite):
         if abs(self.velocity.y) > 0.1:
             old_y = self.rect.y
             self.rect.y += self.velocity.y * dt
-            collision_result = self.check_collisions()
+            collision_result = self.check_ground_collisions()
             if collision_result:
-                self.rect.y = old_y
                 if self.velocity.y > 0:
                     self.collisions["bottom"] = True
                     self.velocity.y = 0
@@ -250,55 +294,108 @@ class Player(Sprite):
                     self.collisions["top"] = True
                     self.velocity.y = 0
             else:
-                self.collisions["bottom"] = False
                 self.collisions["top"] = False
+
+        # Always check if we're still on solid ground (even when not moving vertically)
+        if not self.is_on_ground():
+            self.collisions["bottom"] = False
 
         # Update camera to follow player
         if hasattr(self.game, 'camera'):
             self.game.camera.update(self)
 
-    def check_collisions(self):
+    def is_on_ground(self):
+        """Check if the player is currently standing on solid ground"""
+        # Convert player's world position to tile coordinates
+        left_tile = self.rect.left // self.tilemap.tile_size
+        right_tile = (self.rect.right - 1) // self.tilemap.tile_size
+        bottom_tile = self.rect.bottom // self.tilemap.tile_size
+
+        # Check if there's solid ground directly below the player
+        for tile_x in range(left_tile, right_tile + 1):
+            if (tile_x, bottom_tile) in self.tilemap.tile_map:
+                tile = self.tilemap.tile_map[(tile_x, bottom_tile)]
+                if 'solid' in tile.get('properties', []):
+                    # Calculate the exact top of the tile
+                    tile_top = bottom_tile * self.tilemap.tile_size
+
+                    # Check if player's bottom is touching or very close to the tile top
+                    if abs(self.rect.bottom - tile_top) <= 2:  # Small tolerance for floating point errors
+                        return True
+
+        return False
+
+    def check_wall_collisions(self):
+        """Check for wall collisions specifically"""
         # Convert player's world position to tile coordinates
         left_tile = self.rect.left // self.tilemap.tile_size
         right_tile = (self.rect.right - 1) // self.tilemap.tile_size
         top_tile = self.rect.top // self.tilemap.tile_size
         bottom_tile = (self.rect.bottom - 1) // self.tilemap.tile_size
 
-        # Check ground collision only when falling
-        if self.velocity.y >= 0:  # Only check for ground when falling
-            # Only check the tiles directly below the player's feet
-            ground_y = bottom_tile
+        # Check for wall collisions on the sides
+        for tile_y in range(top_tile, bottom_tile + 1):
+            # Check left wall
+            if (left_tile, tile_y) in self.tilemap.tile_map:
+                tile = self.tilemap.tile_map[(left_tile, tile_y)]
+                if 'solid' in tile.get('properties', []):
+                    tile_right = (left_tile + 1) * self.tilemap.tile_size
+                    if self.rect.left < tile_right:
+                        return True
+
+            # Check right wall
+            if (right_tile, tile_y) in self.tilemap.tile_map:
+                tile = self.tilemap.tile_map[(right_tile, tile_y)]
+                if 'solid' in tile.get('properties', []):
+                    tile_left = right_tile * self.tilemap.tile_size
+                    if self.rect.right > tile_left:
+                        return True
+
+        return False
+
+    def check_ground_collisions(self):
+        """Check for ground and ceiling collisions specifically"""
+        # Convert player's world position to tile coordinates
+        left_tile = self.rect.left // self.tilemap.tile_size
+        right_tile = (self.rect.right - 1) // self.tilemap.tile_size
+        top_tile = self.rect.top // self.tilemap.tile_size
+        bottom_tile = (self.rect.bottom - 1) // self.tilemap.tile_size
+
+        # Check ground collision when falling
+        if self.velocity.y >= 0:
             for tile_x in range(left_tile, right_tile + 1):
-                if (tile_x, ground_y) in self.tilemap.tile_map:
-                    tile = self.tilemap.tile_map[(tile_x, ground_y)]
-                    if 'solid' in tile.get('properties', []):
-                        # Calculate the exact top of the tile
-                        tile_top = ground_y * self.tilemap.tile_size
+                for tile_y in range(bottom_tile, bottom_tile + 2):
+                    if (tile_x, tile_y) in self.tilemap.tile_map:
+                        tile = self.tilemap.tile_map[(tile_x, tile_y)]
+                        if 'solid' in tile.get('properties', []):
+                            tile_top = tile_y * self.tilemap.tile_size
+                            tile_bottom = tile_top + self.tilemap.tile_size
 
-                        # If player's feet are very close to or just below the platform top
-                        if self.rect.bottom >= tile_top and self.rect.bottom <= tile_top + 10:
-                            # Snap to the top of the platform
-                            self.rect.bottom = tile_top
-                            return True
+                            if (self.rect.bottom > tile_top and
+                                self.rect.top < tile_bottom and
+                                self.rect.right > tile_x * self.tilemap.tile_size and
+                                self.rect.left < (tile_x + 1) * self.tilemap.tile_size):
 
-        # Check ceiling collision
-        if self.velocity.y < 0:  # Only check for ceiling when jumping up
+                                self.rect.bottom = tile_top
+                                return True
+
+        # Check ceiling collision when jumping
+        if self.velocity.y < 0:
             for tile_x in range(left_tile, right_tile + 1):
                 if (tile_x, top_tile) in self.tilemap.tile_map:
                     tile = self.tilemap.tile_map[(tile_x, top_tile)]
                     if 'solid' in tile.get('properties', []):
-                        return True
-
-        # Check wall collisions
-        if abs(self.velocity.x) > 0:
-            wall_x = right_tile if self.velocity.x > 0 else left_tile
-            for tile_y in range(top_tile, bottom_tile + 1):
-                if (wall_x, tile_y) in self.tilemap.tile_map:
-                    tile = self.tilemap.tile_map[(wall_x, tile_y)]
-                    if 'solid' in tile.get('properties', []):
-                        return True
+                        tile_bottom = (top_tile + 1) * self.tilemap.tile_size
+                        if self.rect.top <= tile_bottom:
+                            return True
 
         return False
+
+    def check_collisions(self):
+        """Legacy method - now just calls the specific collision methods"""
+        wall_collision = self.check_wall_collisions()
+        ground_collision = self.check_ground_collisions()
+        return wall_collision or ground_collision
 
     def draw(self, surf):
         if hasattr(self, 'image') and self.image:
