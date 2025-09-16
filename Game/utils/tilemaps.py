@@ -55,18 +55,45 @@ class TileMap:
                         print(f"Loading repeat tile: variant {tile['variant']}, pos ({tile['x']}, {tile['y']}), size {tile['w']}x{tile['h']}")
                         for x in range(tile["w"]):
                             for y in range(tile["h"]):
-                                world_x = int(tile['x'] + x)
-                                world_y = int(tile['y'] + y)
-                                print(f"  Creating tile at ({world_x}, {world_y})")
-                                self.tile_map[(world_x, world_y)] = {
-                                    'x': world_x,
-                                    'y': world_y,
-                                    'z': int(tile['z']),
-                                    'environment': data['environment'],
-                                    'type': tile["type"],
-                                    'variant': tile["variant"],
-                                    'properties': tile["properties"]
-                                }
+                                if tile["render_cut"][0] == 0 and x != tile["w"] - 1:
+                                    world_x = int(tile['x'] + x)
+                                    world_y = int(tile['y'] + y)
+                                    print(f"  Creating tile at ({world_x}, {world_y})")
+                                    self.tile_map[(world_x, world_y)] = {
+                                        'x': world_x,
+                                        'y': world_y,
+                                        'z': int(tile['z']),
+                                        'environment': data['environment'],
+                                        'type': tile["type"],
+                                        'variant': tile["variant"],
+                                        'properties': tile["properties"]
+                                    }
+                                elif tile["render_cut"][0] != 0 and x == tile["w"] - 1:
+                                    world_x = int(tile['x'] + x)
+                                    world_y = int(tile['y'] + y)
+                                    print(f"  Creating tile at ({world_x}, {world_y})")
+                                    self.tile_map[(world_x, world_y)] = {
+                                        'x': world_x,
+                                        'y': world_y,
+                                        'z': int(tile['z']),
+                                        'environment': data['environment'],
+                                        'type': tile["type"],
+                                        'variant': None,
+                                        'properties': tile["properties"]
+                                    }
+                                elif tile["render_cut"][0] != 0 and x != tile["w"] - 1:
+                                    world_x = int(tile['x'] + x)
+                                    world_y = int(tile['y'] + y)
+                                    print(f"  Creating tile at ({world_x}, {world_y})")
+                                    self.tile_map[(world_x, world_y)] = {
+                                        'x': world_x,
+                                        'y': world_y,
+                                        'z': int(tile['z']),
+                                        'environment': data['environment'],
+                                        'type': tile["type"],
+                                        'variant': tile["variant"],
+                                        'properties': tile["properties"]
+                                    }
                     else:
                         x, y, z = tile['x'], tile['y'], tile['z']
                         self.tile_map[(x, y)] = {
@@ -113,34 +140,32 @@ class TileMap:
             if tile.get("z") != layer:
                 continue
 
-            env = tile.get('environment')
-            ttype = tile.get('type')
-            variant = str(tile.get('variant', 0))
-
-            tile_assets = self.game.assets.get(env, {})
-            type_assets = tile_assets.get(ttype) if tile_assets else None
-            if not type_assets:
+            if tile.get("variant") is None:
                 continue
 
-            img = type_assets.images.get(variant)
+            env = tile.get('environment')
+            ttype = tile.get('type')
+            variant = int(tile.get('variant'))
+
+            img = self.game.assets[env][ttype].get_images_list()[variant]
             if img is None:
                 continue
 
-            # For repeat tiles, render each tile at its individual position with standard tile size
-            img = pygame.transform.scale(img, (self.tile_size, self.tile_size))
+            img = pygame.transform.scale(img, (scale_sizing[env][ttype].get(str(variant), (self.tile_size, self.tile_size))))
 
-            # Calculate the position in world coordinates
             world_pos = (tile['x'] * self.tile_size, tile['y'] * self.tile_size)
 
-            # Apply camera offset to get screen coordinates
             screen_pos = (int(world_pos[0] - self.game.camera.offset.x), int(world_pos[1] - self.game.camera.offset.y))
 
-            # Draw the tile at the screen position
             surface.blit(img, screen_pos)
 
-            # Debug: draw collision box for solid tiles (only if enabled in config)
             from Game.utils.config import get_config
             config = get_config()
+
+        for tile in self.tile_map.values():
+            world_pos = (tile['x'] * self.tile_size, tile['y'] * self.tile_size)
+
+            screen_pos = (int(world_pos[0] - self.game.camera.offset.x), int(world_pos[1] - self.game.camera.offset.y))
             if 'solid' in tile.get('properties', []) and config.get("debug", {}).get("show_platform_hitboxes", False):
                 debug_rect = pygame.Rect(
                     screen_pos[0],
