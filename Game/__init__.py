@@ -19,33 +19,51 @@ class Game:
         self.running = True
 
         self.camera = Camera(*get_config()["resolution"])
-        self.tilemap = TileMap(self, tile_size=48)
+
         self.sprite_group = SpriteGroup()
 
-        # Load assets after pygame display is initialized
+        self.tilemaps = {}
+
         self.assets = {}
         self.setup()
+
+        self.tilemap_current = "cave"
+        self.tilemap = self.tilemaps[self.tilemap_current]
 
         self.player = Player(pos=(get_config()["resolution"][0]/2, get_config()["resolution"][1]/2), game=self, tilemap=self.tilemap)
         self.num = 0
 
-        self.tilemap.load_map("Game/assets/level/test.json")
-
     def setup(self):
-        self.assets = {"cave":
-            {"big_rocks": SpriteSheet("cave_tiles/Cave - BigRocks1.png", cut=load_json_as_dict("cut_tiles_json/Cave-BigRocks1.json")),
-             "floor": SpriteSheet("cave_tiles/Cave - Floor.png", cut=load_json_as_dict("cut_tiles_json/Cave-Floor.json")),
-             "platform": SpriteSheet("cave_tiles/Cave - Platforms.png", cut=load_json_as_dict("cut_tiles_json/Cave-Platforms.json")),
-             }
+        self.assets = {
+            "cave":
+                {
+                    "big_rocks": SpriteSheet("cave_tiles/Cave - BigRocks1.png", cut=load_json_as_dict("cut_tiles_json/Cave-BigRocks1.json")),
+                    "floor": SpriteSheet("cave_tiles/Cave - Floor.png", cut=load_json_as_dict("cut_tiles_json/Cave-Floor.json")),
+                    "platform": SpriteSheet("cave_tiles/Cave - Platforms.png", cut=load_json_as_dict("cut_tiles_json/Cave-Platforms.json")),
+                },
+           "mossy":
+               {
+                   "platform": SpriteSheet("mossy_tiles/Mossy - FloatingPlatforms.png", tile_size=512),
+               }
         }
 
+        self.tilemaps["cave"] = TileMap(self, tile_size=48, pos=(0, 0), rendered=True)
+        self.tilemaps["mossy"] = TileMap(self, tile_size=48, pos=(18, 0), rendered=False)
+
+        maps = get_config()["tilemaps"]
+
+        for name, tilemaps in self.tilemaps.items():
+            tilemaps.load_map(maps[name])
+
     def draw(self):
-        self.screen.fill((255, 255, 255))
+        self.screen.fill("#000F17")
         self.player.draw(self.screen)
 
         self.sprite_group.draw(self.screen, self.camera.offset)
 
-        self.tilemap.render(self.screen, (0, 0), 5)
+        for tilemap in self.tilemaps.values():
+            if tilemap.rendered:
+                tilemap.render(self.screen, (0, 0), 5)
 
         pygame.display.flip()
 
@@ -56,6 +74,8 @@ class Game:
 
         self.sprite_group.update(dt)
         self.player.update(dt)
+        for tilemap in self.tilemaps.values():
+            self.tilemap.update()
 
     def run(self):
         while self.running:

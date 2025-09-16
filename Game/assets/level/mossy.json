@@ -1,0 +1,23 @@
+{
+  "width": 10,
+  "height": 10,
+  "tile_size": 48,
+  "environment": "mossy",
+  "layers": [
+    {
+      "type": "tilelayer",
+      "name": "Ground",
+      "data": [
+        {"x": 1, "y": 10, "z": 5, "w": 6, "h": 1, "type": "platform" ,"variant": 1, "properties": ["solid", "repeat", "dark"], "offset":  [0, 0],
+          "render_cut": [1, 0]
+        }
+      ]
+    },
+    {
+      "type": "sensor_layer",
+      "name": "Sensors",
+      "data": [
+      ]
+    }
+  ]
+}

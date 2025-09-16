@@ -1,6 +1,6 @@
 import pygame
 import json
-from Game.utils.config import get_config
+from Game.utils.config import *
 
 AUTOTILE_MAP = {
     tuple(sorted([(1, 0), (0, 1)])): 0,
@@ -30,15 +30,31 @@ scale_sizing = {
             "7": (48, 24),
             "8": (48, 48),
         },
+    },
+    "mossy": {
+        "platform": {
+            "0": (48, 48),
+            "1": (96, 24),
+            "2": (144, 48),
+            "3": (48, 24),
+            "4": (24, 24),
+            "5": (48, 24),
+            "6": (24, 24),
+            "7": (48, 24),
+            "8": (48, 48),
+        },
     }
 }
 
 class TileMap:
-    def __init__(self, game, tile_size=48):
+    def __init__(self, game, tile_size=48, pos=(0, 0), rendered=False):
         self.game = game
         self.tile_size = tile_size
         self.tile_map = {}
         self.off_grid_tiles = []
+        self.pos = pygame.math.Vector2(*pos)
+        self.sensors = {}
+        self.rendered = rendered
 
     def load_map(self, path):
         with open(path, 'r') as f:
@@ -49,16 +65,28 @@ class TileMap:
         self.tile_size = data['tile_size']
 
         for layer in data['layers']:
+
+            if layer['type'] == 'sensor_layer':
+                for sensor in layer['data']:
+                    sensor_id = sensor["id"]
+                    if sensor_id is not None:
+                        self.sensors[sensor_id] = {
+                            "type": sensor['type'],
+                            'x': int(sensor['x']),
+                            'y': int(sensor['y']),
+                            'w': int(sensor['w']),
+                            'h': int(sensor['h']),
+                            'properties': sensor.get('properties', {})
+                        }
+
             if layer['type'] == 'tilelayer':
                 for tile in layer['data']:
                     if "repeat" in tile["properties"]:
-                        print(f"Loading repeat tile: variant {tile['variant']}, pos ({tile['x']}, {tile['y']}), size {tile['w']}x{tile['h']}")
                         for x in range(tile["w"]):
                             for y in range(tile["h"]):
                                 if tile["render_cut"][0] == 0 and x != tile["w"] - 1:
                                     world_x = int(tile['x'] + x)
                                     world_y = int(tile['y'] + y)
-                                    print(f"  Creating tile at ({world_x}, {world_y})")
                                     self.tile_map[(world_x, world_y)] = {
                                         'x': world_x,
                                         'y': world_y,
@@ -71,7 +99,6 @@ class TileMap:
                                 elif tile["render_cut"][0] != 0 and x == tile["w"] - 1:
                                     world_x = int(tile['x'] + x)
                                     world_y = int(tile['y'] + y)
-                                    print(f"  Creating tile at ({world_x}, {world_y})")
                                     self.tile_map[(world_x, world_y)] = {
                                         'x': world_x,
                                         'y': world_y,
@@ -84,7 +111,6 @@ class TileMap:
                                 elif tile["render_cut"][0] != 0 and x != tile["w"] - 1:
                                     world_x = int(tile['x'] + x)
                                     world_y = int(tile['y'] + y)
-                                    print(f"  Creating tile at ({world_x}, {world_y})")
                                     self.tile_map[(world_x, world_y)] = {
                                         'x': world_x,
                                         'y': world_y,
@@ -106,10 +132,17 @@ class TileMap:
                             'properties': tile["properties"]
                         }
 
-        print(f"Total tiles loaded: {len(self.tile_map)}")
         for pos, tile in self.tile_map.items():
             if 'solid' in tile.get('properties', []):
-                print(f"Solid tile at {pos}: variant {tile['variant']}")
+                pass
+
+        for tile in self.tile_map.values():
+            tile['x'] += int(self.pos.x)
+            tile['y'] += int(self.pos.y)
+
+        for sensor in self.sensors.values():
+            sensor['x'] += int(self.pos.x)
+            sensor['y'] += int(self.pos.y)
 
     def get_tiles_around(self, pos):
         x, y = pos
@@ -136,6 +169,18 @@ class TileMap:
         return tiles
 
     def render(self, surface, camera_offset, layer):
+        from Game.utils.config import get_config
+        config = get_config()
+        screen_height = config["resolution"][1]
+        for tile in self.tile_map.values():
+            if "dark" in tile["properties"]:
+                x = tile['x'] * self.tile_size - self.game.camera.offset.x
+                y = (tile['y']) * self.tile_size - self.game.camera.offset.y
+                width = self.tile_size
+                height = screen_height - y
+                if height > 0:
+                    pygame.draw.rect(surface, (0, 0, 0), (x, y, width, height))
+
         for tile in self.tile_map.values():
             if tile.get("z") != layer:
                 continue
@@ -151,16 +196,17 @@ class TileMap:
             if img is None:
                 continue
 
-            img = pygame.transform.scale(img, (scale_sizing[env][ttype].get(str(variant), (self.tile_size, self.tile_size))))
+            try:
+                img = pygame.transform.scale(img, (scale_sizing[env][ttype].get(str(variant), (self.tile_size, self.tile_size))))
+            except Exception as e:
+                print(f"Error scaling image for tile {tile}: {e}")
+                img = pygame.transform.scale(img, (self.tile_size, self.tile_size))
 
             world_pos = (tile['x'] * self.tile_size, tile['y'] * self.tile_size)
 
             screen_pos = (int(world_pos[0] - self.game.camera.offset.x), int(world_pos[1] - self.game.camera.offset.y))
 
             surface.blit(img, screen_pos)
-
-            from Game.utils.config import get_config
-            config = get_config()
 
         for tile in self.tile_map.values():
             world_pos = (tile['x'] * self.tile_size, tile['y'] * self.tile_size)
@@ -174,3 +220,32 @@ class TileMap:
                     self.tile_size
                 )
                 pygame.draw.rect(surface, (0, 255, 0), debug_rect, 1)
+
+        for sensor in self.sensors.values():
+            if config.get("debug", {}).get("show_sensors", False):
+                rect = pygame.Rect(sensor["x"]*self.tile_size - self.game.camera.offset.x, sensor["y"]*self.tile_size - self.game.camera.offset.y, sensor["w"]*self.tile_size, sensor["h"]*self.tile_size)
+                pygame.draw.rect(surface, (255, 0, 0), rect, 1)
+
+    def update(self):
+        for sensor in self.sensors.values():
+            if sensor["type"] == "render":
+                for prop in sensor["properties"]:
+                    if "render" in prop:
+                        rect = pygame.Rect(sensor["x"] * self.tile_size,
+                                           sensor["y"] * self.tile_size,
+                                           sensor["w"] * self.tile_size, sensor["h"] * self.tile_size)
+                        map = prop.split(":")[1]
+                        if rect.colliderect(self.game.player.rect):
+                            self.game.tilemap_current = map
+                            self.game.tilemap = self.game.tilemaps[self.game.tilemap_current]
+                            self.game.tilemaps[map].rendered = True
+                    if "derender" in prop:
+                        rect = pygame.Rect(sensor["x"] * self.tile_size,
+                                           sensor["y"] * self.tile_size,
+                                           sensor["w"] * self.tile_size, sensor["h"] * self.tile_size)
+                        map = prop.split(":")[1]
+                        if rect.colliderect(self.game.player.rect):
+                            self.game.tilemap_current = map
+                            self.game.tilemap = self.game.tilemaps[self.game.tilemap_current]
+                            self.game.tilemaps[map].rendered = False
+                            print("de-rendered")

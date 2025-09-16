@@ -353,9 +353,7 @@ class Player(Sprite):
 
         return False
 
-    def check_ground_collisions(self):
-        """Check for ground and ceiling collisions specifically"""
-        # Convert player's world position to tile coordinates
+    def check_ground_collisions(self, tilemap=None):
         left_tile = self.rect.left // self.tilemap.tile_size
         right_tile = (self.rect.right - 1) // self.tilemap.tile_size
         top_tile = self.rect.top // self.tilemap.tile_size
