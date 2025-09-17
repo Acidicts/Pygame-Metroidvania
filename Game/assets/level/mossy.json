@@ -16,7 +16,8 @@
     {
       "type": "sensor_layer",
       "name": "Sensors",
-      "data": [
+      "data": [{"x": 0, "y": 2, "z": 5, "w": 3, "h": 10,
+          "id":  1, "type": "render", "properties": ["toggle_render:cave"], "offset": [0, 0]}
       ]
     }
   ]

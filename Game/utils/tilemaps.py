@@ -76,7 +76,9 @@ class TileMap:
                             'y': int(sensor['y']),
                             'w': int(sensor['w']),
                             'h': int(sensor['h']),
-                            'properties': sensor.get('properties', {})
+                            'properties': sensor.get('properties', []),  # Keep as list
+                            'triggered': False,
+                            "id": sensor_id
                         }
 
             if layer['type'] == 'tilelayer':
@@ -199,7 +201,6 @@ class TileMap:
             try:
                 img = pygame.transform.scale(img, (scale_sizing[env][ttype].get(str(variant), (self.tile_size, self.tile_size))))
             except Exception as e:
-                print(f"Error scaling image for tile {tile}: {e}")
                 img = pygame.transform.scale(img, (self.tile_size, self.tile_size))
 
             world_pos = (tile['x'] * self.tile_size, tile['y'] * self.tile_size)
@@ -229,23 +230,47 @@ class TileMap:
     def update(self):
         for sensor in self.sensors.values():
             if sensor["type"] == "render":
+                rect = pygame.Rect(sensor["x"] * self.tile_size,
+                                   sensor["y"] * self.tile_size,
+                                   sensor["w"] * self.tile_size,
+                                   sensor["h"] * self.tile_size)
+
+                player_in_sensor = rect.colliderect(self.game.player.rect)
+
                 for prop in sensor["properties"]:
-                    if "render" in prop:
-                        rect = pygame.Rect(sensor["x"] * self.tile_size,
-                                           sensor["y"] * self.tile_size,
-                                           sensor["w"] * self.tile_size, sensor["h"] * self.tile_size)
-                        map = prop.split(":")[1]
-                        if rect.colliderect(self.game.player.rect):
-                            self.game.tilemap_current = map
+                    if "render" in prop and not sensor["triggered"] and "derender" not in prop and "toggle_render" not in prop:
+                        map_name = prop.split(":")[1]
+                        if player_in_sensor:
+                            self.game.tilemap_current = map_name
                             self.game.tilemap = self.game.tilemaps[self.game.tilemap_current]
-                            self.game.tilemaps[map].rendered = True
-                    if "derender" in prop:
-                        rect = pygame.Rect(sensor["x"] * self.tile_size,
-                                           sensor["y"] * self.tile_size,
-                                           sensor["w"] * self.tile_size, sensor["h"] * self.tile_size)
-                        map = prop.split(":")[1]
-                        if rect.colliderect(self.game.player.rect):
-                            self.game.tilemap_current = map
+                            self.game.tilemaps[map_name].rendered = True
+                            sensor["triggered"] = True
+
+                    if "derender" in prop and not sensor["triggered"]:
+                        map_name = prop.split(":")[1]
+                        if player_in_sensor:
+                            self.game.tilemap_current = map_name
                             self.game.tilemap = self.game.tilemaps[self.game.tilemap_current]
-                            self.game.tilemaps[map].rendered = False
-                            print("de-rendered")
+                            self.game.tilemaps[map_name].rendered = False
+                            sensor["triggered"] = True
+
+                    if "toggle_render" in prop and not sensor["triggered"]:
+                        map_name = prop.split(":")[1]
+                        if player_in_sensor:
+                            self.game.tilemaps[map_name].rendered = not self.game.tilemaps[map_name].rendered
+
+                            current_found = False
+                            for name, tilemap in self.game.tilemaps.items():
+                                if tilemap.rendered:
+                                    self.game.tilemap_current = name
+                                    self.game.tilemap = tilemap
+                                    current_found = True
+                                    break
+
+                            if not current_found:
+                                pass
+
+                            sensor["triggered"] = True
+
+                if sensor["triggered"] and not player_in_sensor:
+                    sensor["triggered"] = False

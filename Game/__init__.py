@@ -75,7 +75,7 @@ class Game:
         self.sprite_group.update(dt)
         self.player.update(dt)
         for tilemap in self.tilemaps.values():
-            self.tilemap.update()
+            tilemap.update()
 
     def run(self):
         while self.running:

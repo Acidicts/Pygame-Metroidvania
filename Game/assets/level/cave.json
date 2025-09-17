@@ -25,7 +25,7 @@
       "name": "Sensors",
       "data": [
         {"x": 16, "y": 2, "z": 5, "w": 3, "h": 10,
-          "id":  0, "type": "render", "properties": ["render:mossy"], "offset": [0, 0]}
+          "id":  0, "type": "render", "properties": ["toggle_render:mossy"], "offset": [0, 0]}
       ]
     }
   ]

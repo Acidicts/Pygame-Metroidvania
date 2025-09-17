@@ -273,15 +273,12 @@ class Player(Sprite):
     def move(self, dt):
         old_x, old_y = self.rect.x, self.rect.y
 
-        # Move horizontally first
         if abs(self.velocity.x) > 0.1:
             self.rect.x += self.velocity.x * dt
-            # Check for wall collisions
             if self.check_wall_collisions():
                 self.rect.x = old_x
                 self.velocity.x = 0
 
-        # Then move vertically
         if abs(self.velocity.y) > 0.1:
             old_y = self.rect.y
             self.rect.y += self.velocity.y * dt
@@ -296,101 +293,110 @@ class Player(Sprite):
             else:
                 self.collisions["top"] = False
 
-        # Always check if we're still on solid ground (even when not moving vertically)
         if not self.is_on_ground():
             self.collisions["bottom"] = False
 
-        # Update camera to follow player
         if hasattr(self.game, 'camera'):
             self.game.camera.update(self)
 
     def is_on_ground(self):
-        """Check if the player is currently standing on solid ground"""
-        # Convert player's world position to tile coordinates
-        left_tile = self.rect.left // self.tilemap.tile_size
-        right_tile = (self.rect.right - 1) // self.tilemap.tile_size
-        bottom_tile = self.rect.bottom // self.tilemap.tile_size
+        for tilemap in self.game.tilemaps.values():
+            if not tilemap.rendered:
+                continue
 
-        # Check if there's solid ground directly below the player
-        for tile_x in range(left_tile, right_tile + 1):
-            if (tile_x, bottom_tile) in self.tilemap.tile_map:
-                tile = self.tilemap.tile_map[(tile_x, bottom_tile)]
-                if 'solid' in tile.get('properties', []):
-                    # Calculate the exact top of the tile
-                    tile_top = bottom_tile * self.tilemap.tile_size
+            left_tile = int(self.rect.left - tilemap.pos.x * tilemap.tile_size) // tilemap.tile_size
+            right_tile = int(self.rect.right - 1 - tilemap.pos.x * tilemap.tile_size) // tilemap.tile_size
+            bottom_tile = int (self.rect.bottom - tilemap.pos.y * tilemap.tile_size) // tilemap.tile_size
 
-                    # Check if player's bottom is touching or very close to the tile top
-                    if abs(self.rect.bottom - tile_top) <= 2:  # Small tolerance for floating point errors
-                        return True
+            for tile_x in range(left_tile, right_tile + 1):
+                original_tile_x = tile_x
+                original_tile_y = bottom_tile
 
+                for (tx, ty), tile in tilemap.tile_map.items():
+                    if (tile['x'] - tilemap.pos.x == original_tile_x and
+                        tile['y'] - tilemap.pos.y == original_tile_y):
+                        if 'solid' in tile.get('properties', []):
+                            tile_top = tile['y'] * tilemap.tile_size
+                            if abs(self.rect.bottom - tile_top) <= 2:
+                                return True
         return False
 
     def check_wall_collisions(self):
-        """Check for wall collisions specifically"""
-        # Convert player's world position to tile coordinates
-        left_tile = self.rect.left // self.tilemap.tile_size
-        right_tile = (self.rect.right - 1) // self.tilemap.tile_size
-        top_tile = self.rect.top // self.tilemap.tile_size
-        bottom_tile = (self.rect.bottom - 1) // self.tilemap.tile_size
+        for tilemap in self.game.tilemaps.values():
+            if not tilemap.rendered:
+                continue
 
-        # Check for wall collisions on the sides
-        for tile_y in range(top_tile, bottom_tile + 1):
-            # Check left wall
-            if (left_tile, tile_y) in self.tilemap.tile_map:
-                tile = self.tilemap.tile_map[(left_tile, tile_y)]
-                if 'solid' in tile.get('properties', []):
-                    tile_right = (left_tile + 1) * self.tilemap.tile_size
-                    if self.rect.left < tile_right:
-                        return True
+            left_tile = int(self.rect.left - tilemap.pos.x * tilemap.tile_size) // tilemap.tile_size
+            right_tile = int(self.rect.right - 1 - tilemap.pos.x * tilemap.tile_size) // tilemap.tile_size
+            top_tile = int(self.rect.top - tilemap.pos.y * tilemap.tile_size) // tilemap.tile_size
+            bottom_tile = int(self.rect.bottom - 1 - tilemap.pos.y * tilemap.tile_size) // tilemap.tile_size
 
-            # Check right wall
-            if (right_tile, tile_y) in self.tilemap.tile_map:
-                tile = self.tilemap.tile_map[(right_tile, tile_y)]
-                if 'solid' in tile.get('properties', []):
-                    tile_left = right_tile * self.tilemap.tile_size
-                    if self.rect.right > tile_left:
-                        return True
-
-        return False
-
-    def check_ground_collisions(self, tilemap=None):
-        left_tile = self.rect.left // self.tilemap.tile_size
-        right_tile = (self.rect.right - 1) // self.tilemap.tile_size
-        top_tile = self.rect.top // self.tilemap.tile_size
-        bottom_tile = (self.rect.bottom - 1) // self.tilemap.tile_size
-
-        # Check ground collision when falling
-        if self.velocity.y >= 0:
-            for tile_x in range(left_tile, right_tile + 1):
-                for tile_y in range(bottom_tile, bottom_tile + 2):
-                    if (tile_x, tile_y) in self.tilemap.tile_map:
-                        tile = self.tilemap.tile_map[(tile_x, tile_y)]
+            for tile_y in range(top_tile, bottom_tile + 1):
+                for (tx, ty), tile in tilemap.tile_map.items():
+                    if (tile['x'] - tilemap.pos.x == left_tile and
+                        tile['y'] - tilemap.pos.y == tile_y):
                         if 'solid' in tile.get('properties', []):
-                            tile_top = tile_y * self.tilemap.tile_size
-                            tile_bottom = tile_top + self.tilemap.tile_size
-
-                            if (self.rect.bottom > tile_top and
-                                self.rect.top < tile_bottom and
-                                self.rect.right > tile_x * self.tilemap.tile_size and
-                                self.rect.left < (tile_x + 1) * self.tilemap.tile_size):
-
-                                self.rect.bottom = tile_top
+                            tile_right = (tile['x'] + 1) * tilemap.tile_size
+                            if self.rect.left < tile_right and self.rect.right > tile['x'] * tilemap.tile_size:
                                 return True
 
-        # Check ceiling collision when jumping
-        if self.velocity.y < 0:
-            for tile_x in range(left_tile, right_tile + 1):
-                if (tile_x, top_tile) in self.tilemap.tile_map:
-                    tile = self.tilemap.tile_map[(tile_x, top_tile)]
-                    if 'solid' in tile.get('properties', []):
-                        tile_bottom = (top_tile + 1) * self.tilemap.tile_size
-                        if self.rect.top <= tile_bottom:
-                            return True
+            for tile_y in range(top_tile, bottom_tile + 1):
+                for (tx, ty), tile in tilemap.tile_map.items():
+                    if (tile['x'] - tilemap.pos.x == right_tile and
+                        tile['y'] - tilemap.pos.y == tile_y):
+                        if 'solid' in tile.get('properties', []):
+                            tile_left = tile['x'] * tilemap.tile_size
+                            if self.rect.right > tile_left and self.rect.left < (tile['x'] + 1) * tilemap.tile_size:
+                                return True
+        return False
 
+    def check_ground_collisions(self):
+        for tilemap in self.game.tilemaps.values():
+            if not tilemap.rendered:
+                continue
+
+            left_tile = int(self.rect.left - tilemap.pos.x * tilemap.tile_size) // tilemap.tile_size
+            right_tile = int(self.rect.right - 1 - tilemap.pos.x * tilemap.tile_size) // tilemap.tile_size
+            top_tile = int(self.rect.top - tilemap.pos.y * tilemap.tile_size) // tilemap.tile_size
+            bottom_tile = int(self.rect.bottom - 1 - tilemap.pos.y * tilemap.tile_size) // tilemap.tile_size
+
+            if self.velocity.y >= 0:
+                for tile_x in range(left_tile, right_tile + 1):
+                    for (tx, ty), tile in tilemap.tile_map.items():
+                        if (tile['x'] - tilemap.pos.x == tile_x and
+                            tile['y'] - tilemap.pos.y >= bottom_tile and
+                            tile['y'] - tilemap.pos.y <= bottom_tile + 1):
+                            if 'solid' in tile.get('properties', []):
+                                tile_top = tile['y'] * tilemap.tile_size
+                                tile_bottom = tile_top + tilemap.tile_size
+                                tile_left = tile['x'] * tilemap.tile_size
+                                tile_right = tile_left + tilemap.tile_size
+
+                                if (self.rect.bottom > tile_top and
+                                    self.rect.top < tile_bottom and
+                                    self.rect.right > tile_left and
+                                    self.rect.left < tile_right):
+                                    self.rect.bottom = tile_top
+                                    return True
+
+            if self.velocity.y < 0:
+                for tile_x in range(left_tile, right_tile + 1):
+                    for (tx, ty), tile in tilemap.tile_map.items():
+                        if (tile['x'] - tilemap.pos.x == tile_x and
+                            tile['y'] - tilemap.pos.y == top_tile):
+                            if 'solid' in tile.get('properties', []):
+                                tile_bottom = (tile['y'] + 1) * tilemap.tile_size
+                                tile_left = tile['x'] * tilemap.tile_size
+                                tile_right = tile_left + tilemap.tile_size
+
+                                if (self.rect.top <= tile_bottom and
+                                    self.rect.right > tile_left and
+                                    self.rect.left < tile_right):
+                                    self.rect.top = tile_bottom
+                                    return True
         return False
 
     def check_collisions(self):
-        """Legacy method - now just calls the specific collision methods"""
         wall_collision = self.check_wall_collisions()
         ground_collision = self.check_ground_collisions()
         return wall_collision or ground_collision
@@ -401,12 +407,10 @@ class Player(Sprite):
             if self.attributes["flipped"]:
                 display_image = pygame.transform.flip(self.image, True, False)
 
-            # Apply camera offset to the visual rect position for screen rendering
             screen_pos = (self.visual_rect.x - self.game.camera.offset.x,
                          self.visual_rect.y - self.game.camera.offset.y)
             surf.blit(display_image, screen_pos)
 
-            # Debug: draw collision boxes with camera offset applied (only if enabled in config)
             from Game.utils.config import get_config
             config = get_config()
             if config.get("debug", {}).get("show_collision_boxes", False):
@@ -418,3 +422,4 @@ class Player(Sprite):
                                     self.visual_rect.width, self.visual_rect.height)
                 pygame.draw.rect(surf, (255, 0, 0), screen_collision_rect, 2)
                 pygame.draw.rect(surf, (0, 0, 255), screen_visual_rect, 1)
+
