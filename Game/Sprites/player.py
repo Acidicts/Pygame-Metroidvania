@@ -1,14 +1,15 @@
 import pygame
 from Game.Sprites.sprite import Sprite
 from Game.utils.utils import SpriteSheet
+from Game.utils.timer import Timer
 
 
 class Player(Sprite):
     def __init__(self, img=pygame.surface.Surface((32, 32)), pos=(0, 0), id=None, game=None, tilemap=None):
         super().__init__(img, pos, id)
         self.max_speed = 200
-        self.acceleration = 1000  # Increased for more responsive acceleration
-        self.friction = 1200      # Increased for less slippery deceleration
+        self.acceleration = 1000
+        self.friction = 1200
         self.velocity = pygame.math.Vector2(0, 0)
 
         self.tilemap = tilemap
@@ -17,13 +18,13 @@ class Player(Sprite):
         self.animations = {
             "idle": (SpriteSheet("little_riven/Idle.png", tile_size=144, colorkey=(0, 0, 0)), 15, True),
             "death": (SpriteSheet("little_riven/Death.png", tile_size=144, colorkey=(0, 0, 0)), 10, False),
-            "double_slash": (SpriteSheet("little_riven/Double Slash.png", tile_size=144, colorkey=(0, 0, 0)), 20, False),
+            "double_slash": (SpriteSheet("little_riven/Double Slash.png", tile_size=144, colorkey=(0, 0, 0)), 30, False),
             "fall": (SpriteSheet("little_riven/Fall.png", tile_size=144, colorkey=(0, 0, 0)), 15, True),
             "hurt": (SpriteSheet("little_riven/Hurt.png", tile_size=144, colorkey=(0, 0, 0)), 15, False),
             "idle_break": (SpriteSheet("little_riven/Idle Break.png", tile_size=144, colorkey=(0, 0, 0)), 30, False),
             "jump": (SpriteSheet("little_riven/Jump.png", tile_size=144, colorkey=(0, 0, 0)), 5, True),
             "run": (SpriteSheet("little_riven/Run.png", tile_size=144, colorkey=(0, 0, 0)), 10, True),
-            "slash": (SpriteSheet("little_riven/Slash.png", tile_size=144, colorkey=(0, 0, 0)), 20, False),
+            "slash": (SpriteSheet("little_riven/Slash.png", tile_size=144, colorkey=(0, 0, 0)), 30, False),
             "smoke_in": (SpriteSheet("little_riven/Smoke In.png", tile_size=144, colorkey=(0, 0, 0)), 10, False),
             "smoke_out": (SpriteSheet("little_riven/Smoke Out.png", tile_size=144, colorkey=(0, 0, 0)), 10, False),
             "special_skill": (SpriteSheet("little_riven/Special Skill.png", tile_size=144, colorkey=(0, 0, 0)), 10, False),
@@ -58,6 +59,12 @@ class Player(Sprite):
             "jump_strength": 500,
         }
 
+        self.timers = {
+            "damage": 0,
+            "invulnerability": 0,
+            "attack_cooldown": Timer(1),
+        }
+
         self.collisions = {
             "top": False,
             "bottom": False,
@@ -67,22 +74,23 @@ class Player(Sprite):
 
         self.gravity = 15
         self.max_fall_speed = 400
+        self.double_slash_hold_ms = 250
+
+        self.attributes.update({
+            "slashing": False,
+            "double_slashing": False,
+            "attack_press_time": 0,
+        })
 
     def controls(self):
         keys = pygame.key.get_pressed()
 
-        if self.attributes["can_move"]:
-            # Get input direction
+        if self.attributes["can_move"] and not (self.attributes.get("slashing") or self.attributes.get("double_slashing")):
             input_direction = int(keys[pygame.K_RIGHT]) - int(keys[pygame.K_LEFT])
-
-            # Apply acceleration or friction
             if input_direction != 0:
-                # Accelerate in the input direction
-                self.velocity.x += input_direction * self.acceleration * (1/60)  # Assuming 60 FPS
-                # Clamp to max speed
+                self.velocity.x += input_direction * self.acceleration * (1/60)
                 self.velocity.x = max(-self.max_speed, min(self.max_speed, self.velocity.x))
             else:
-                # Apply friction when no input
                 if abs(self.velocity.x) > self.friction * (1/60):
                     friction_direction = -1 if self.velocity.x > 0 else 1
                     self.velocity.x += friction_direction * self.friction * (1/60)
@@ -96,10 +104,6 @@ class Player(Sprite):
         elif not keys[pygame.K_SPACE] and self.velocity.y < 0:
             self.velocity.y *= 0.5
 
-        if self.velocity.y < 0 and self.animation != "jump":
-            self.animation = "jump"
-            self.frame = 0
-
         if self.velocity.x > 0:
             self.attributes["flipped"] = False
         elif self.velocity.x < 0:
@@ -108,27 +112,67 @@ class Player(Sprite):
         if self.attributes["jumping"] and self.velocity.y < 0:
             self.attributes["jumping"] = False
 
+        if keys[pygame.K_x] and not self.timers["attack_cooldown"].active:
+            if not self.attributes.get("slashing") and not self.attributes.get("double_slashing"):
+                self.attributes["slashing"] = True
+                self.attributes["attack_press_time"] = pygame.time.get_ticks()
+                self.frame = 0
+                self.velocity.x = 0
+                self.animation = "slash"
+                self.timers["attack_cooldown"].activate()
+
     def update(self, dt):
+        self.timers["attack_cooldown"].update()
+
         self.controls()
+
+        keys = pygame.key.get_pressed()
+        if (self.attributes.get("slashing") and not self.attributes.get("double_slashing")):
+            if keys[pygame.K_x]:
+                elapsed = pygame.time.get_ticks() - self.attributes.get("attack_press_time", 0)
+                if elapsed >= self.double_slash_hold_ms:
+                    self.attributes["double_slashing"] = True
+                    self.animation = "double_slash"
+                    self.frame = 0
+
+        if self.attributes.get("slashing") or self.attributes.get("double_slashing"):
+            current_anim_key = "double_slash" if self.attributes.get("double_slashing") else "slash"
+            sprite_sheet, frame_duration, is_looping = self.animations[current_anim_key]
+            images = sprite_sheet.get_images_list()
+            if images:
+                if int(self.frame) < len(images):
+                    self.image = images[int(self.frame)]
+                else:
+                    if self.attributes.get("double_slashing"):
+                        self.attributes["double_slashing"] = False
+                        self.attributes["slashing"] = False
+                    else:
+                        self.attributes["slashing"] = False
+                    self.animation = "idle"
+                    self.frame = 0
+                    if self.image:
+                        self.image = pygame.transform.scale(self.image, (self.scaled_sprite_size, self.scaled_sprite_size))
+                        self.image.set_colorkey((0,0,0))
+                        self.update_visual_rect()
+                    return
+            self.frame += frame_duration / 60
+            if self.image:
+                self.image = pygame.transform.scale(self.image, (self.scaled_sprite_size, self.scaled_sprite_size))
+                self.image.set_colorkey((0,0,0))
+                self.update_visual_rect()
+            return
 
         if not self.collisions["bottom"]:
             self.velocity.y += self.gravity * dt * 60
             self.velocity.y = min(self.velocity.y, self.max_fall_speed)
 
-        # Store position before movement to check if we actually moved
         old_x = self.rect.x
-
         self.move(dt)
-
-        # Check if we actually moved horizontally (not just had velocity)
         actually_moved_x = abs(self.rect.x - old_x) > 0.1
 
-        # Handle animations based on player state
         if self.collisions["bottom"]:
             self.attributes["jumps"] = self.attributes["max_jumps"]
             self.attributes["falling"] = False
-
-            # Ground-based animations - always update when on ground
             if self.attributes["can_move"]:
                 if actually_moved_x:
                     if self.animation != "run":
@@ -136,54 +180,39 @@ class Player(Sprite):
                         self.frame = 0
                     self.attributes["idle_timer"] = 0
                 else:
-                    # Only switch to idle if not in a special animation
-                    if self.animation not in ["idle_break"]:
-                        if self.animation != "idle":
-                            self.animation = "idle"
-                            self.frame = 0
+                    if self.animation not in ["idle_break"] and self.animation != "idle":
+                        self.animation = "idle"
+                        self.frame = 0
         else:
-            # Air-based animations
-            if self.velocity.y > 0:
-                # Falling
-                if self.animation != "fall":
-                    self.animation = "fall"
-                    self.frame = 0
+            if self.velocity.y > 0 and self.animation != "fall":
+                self.animation = "fall"
+                self.frame = 0
                 self.attributes["idle_timer"] = 0
-            elif self.velocity.y < 0:
-                # Jumping up
-                if self.animation != "jump":
-                    self.animation = "jump"
-                    self.frame = 0
+            elif self.velocity.y < 0 and self.animation != "jump":
+                self.animation = "jump"
+                self.frame = 0
 
-        anim_data = self.animations[self.animation]
-        sprite_sheet, frame_duration, is_looping = anim_data
-
+        sprite_sheet, frame_duration, is_looping = self.animations[self.animation]
         images = sprite_sheet.get_images_list()
         if images:
             if is_looping:
                 self.image = images[int(self.frame) % len(images)]
             elif int(self.frame) < len(images):
-                self.image = images[min(int(self.frame), len(images) - 1)]
+                self.image = images[int(self.frame)]
             else:
-                if self.animation == "idle_break":
-                    self.animation = "idle"
-                    self.frame = 0
-                    self.attributes["idle_timer"] = 0
-                else:
-                    self.animation = "idle"
-                    self.frame = 0
+                self.animation = "idle"
+                self.frame = 0
                 return
 
-        if hasattr(self, 'image') and self.image:
-            scaled_size = (self.scaled_sprite_size, self.scaled_sprite_size)
-            self.image = pygame.transform.scale(self.image, scaled_size)
-            self.image.set_colorkey((0, 0, 0))
-
+        if self.image:
+            self.image = pygame.transform.scale(self.image, (self.scaled_sprite_size, self.scaled_sprite_size))
+            self.image.set_colorkey((0,0,0))
             self.update_visual_rect()
 
         self.frame += frame_duration / 60
 
-        if self.animation == "idle" and self.collisions["bottom"] and self.velocity.x == 0 and self.attributes["can_move"]:
+        if (self.animation == "idle" and self.collisions["bottom"] and
+            self.velocity.x == 0 and self.attributes["can_move"]):
             if self.attributes["idle_timer"] >= 180:
                 self.animation = "idle_break"
                 self.frame = 0

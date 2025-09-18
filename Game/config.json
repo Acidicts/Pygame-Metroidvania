@@ -8,7 +8,7 @@
   "debug": {
     "show_collision_boxes": false,
     "show_platform_hitboxes": false,
-    "show_sensors": true
+    "show_sensors": false
   },
   "tilemaps" : {
     "cave": "Game/assets/level/cave.json",
