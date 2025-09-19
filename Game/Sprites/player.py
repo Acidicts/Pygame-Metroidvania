@@ -81,6 +81,10 @@ class Player(Sprite):
             "double_slashing": False,
             "attack_press_time": 0,
         })
+        self.attacking_hitboxes = {
+            "slash_right": pygame.Rect(self.game.screen.get_width()//2, self.game.screen.get_height()//2 + 10, 70, 15),
+            "slash_left": pygame.Rect(self.game.screen.get_width()//2 - 70, self.game.screen.get_height()//2 + 10, 70, 15),
+        }
 
     def controls(self):
         keys = pygame.key.get_pressed()
@@ -433,6 +437,7 @@ class Player(Sprite):
     def draw(self, surf):
         if hasattr(self, 'image') and self.image:
             display_image = self.image
+
             if self.attributes["flipped"]:
                 display_image = pygame.transform.flip(self.image, True, False)
 
@@ -451,4 +456,3 @@ class Player(Sprite):
                                     self.visual_rect.width, self.visual_rect.height)
                 pygame.draw.rect(surf, (255, 0, 0), screen_collision_rect, 2)
                 pygame.draw.rect(surf, (0, 0, 255), screen_visual_rect, 1)
-
