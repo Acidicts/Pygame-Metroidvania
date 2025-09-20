@@ -1,5 +1,4 @@
 import pygame
-import json
 from Game.utils.config import *
 
 AUTOTILE_MAP = {
@@ -226,6 +225,23 @@ class TileMap:
             if config.get("debug", {}).get("show_sensors", False):
                 rect = pygame.Rect(sensor["x"]*self.tile_size - self.game.camera.offset.x, sensor["y"]*self.tile_size - self.game.camera.offset.y, sensor["w"]*self.tile_size, sensor["h"]*self.tile_size)
                 pygame.draw.rect(surface, (255, 0, 0), rect, 1)
+
+    def is_solid(self, pos, offset):
+        x = pos[0] // self.tile_size
+        y = pos[1] // self.tile_size
+
+        x += offset[0]
+        y += offset[1]
+
+        for i, o in self.tile_map.keys():
+            if i == x and o == y:
+                if "solid" in self.tile_map[x][y]["properties"]:
+                    return True
+                else:
+                    return False
+            else:
+                return False
+        return False
 
     def update(self):
         for sensor in self.sensors.values():

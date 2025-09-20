@@ -5,8 +5,8 @@ from Game.utils.timer import Timer
 
 
 class Player(Sprite):
-    def __init__(self, img=pygame.surface.Surface((32, 32)), pos=(0, 0), id=None, game=None, tilemap=None):
-        super().__init__(img, pos, id)
+    def __init__(self, img=pygame.surface.Surface((32, 32)), pos=(0, 0), identifier=None, game=None, tilemap=None):
+        super().__init__(img, pos, identifier)
         self.max_speed = 200
         self.acceleration = 1000
         self.friction = 1200
@@ -93,7 +93,7 @@ class Player(Sprite):
             input_direction = int(keys[pygame.K_RIGHT]) - int(keys[pygame.K_LEFT])
             if input_direction != 0:
                 self.velocity.x += input_direction * self.acceleration * (1/60)
-                self.velocity.x = max(-self.max_speed, min(self.max_speed, self.velocity.x))
+                self.velocity.x = max(-self.max_speed, min(self.max_speed, int(self.velocity.x)))
             else:
                 if abs(self.velocity.x) > self.friction * (1/60):
                     friction_direction = -1 if self.velocity.x > 0 else 1
@@ -130,8 +130,26 @@ class Player(Sprite):
 
         self.controls()
 
+        if self.attributes.get("slashing") or self.attributes.get("double_slashing"):
+            if self.attributes["flipped"]:
+                for enemy in self.game.enemies:
+                    rect = enemy.rect.copy()
+                    rect.topleft -= self.game.camera.offset
+                    if self.attacking_hitboxes["slash_left"].colliderect(rect):
+                        enemy.take_damage(1)
+                        if enemy.health <= 0:
+                            self.game.enemies.remove(enemy)
+            else:
+                for enemy in self.game.enemies:
+                    rect = enemy.rect.copy()
+                    rect.topleft -= self.game.camera.offset
+                    if self.attacking_hitboxes["slash_right"].colliderect(rect):
+                        enemy.take_damage(1)
+                        if enemy.health <= 0:
+                            self.game.enemies.remove(enemy)
+
         keys = pygame.key.get_pressed()
-        if (self.attributes.get("slashing") and not self.attributes.get("double_slashing")):
+        if self.attributes.get("slashing") and not self.attributes.get("double_slashing"):
             if keys[pygame.K_x]:
                 elapsed = pygame.time.get_ticks() - self.attributes.get("attack_press_time", 0)
                 if elapsed >= self.double_slash_hold_ms:
@@ -258,7 +276,8 @@ class Player(Sprite):
             'offset_y': offset_y
         }
 
-    def get_sprite_bounds(self, surface):
+    @staticmethod
+    def get_sprite_bounds(surface):
         width, height = surface.get_size()
 
         left = width
@@ -313,7 +332,6 @@ class Player(Sprite):
                 self.velocity.x = 0
 
         if abs(self.velocity.y) > 0.1:
-            old_y = self.rect.y
             self.rect.y += self.velocity.y * dt
             collision_result = self.check_ground_collisions()
             if collision_result:
@@ -345,11 +363,11 @@ class Player(Sprite):
                 original_tile_x = tile_x
                 original_tile_y = bottom_tile
 
-                for (tx, ty), tile in tilemap.tile_map.items():
-                    if (tile['x'] - tilemap.pos.x == original_tile_x and
-                        tile['y'] - tilemap.pos.y == original_tile_y):
-                        if 'solid' in tile.get('properties', []):
-                            tile_top = tile['y'] * tilemap.tile_size
+                for tile_key, tile_data in tilemap.tile_map.items():
+                    if (tile_data['x'] - tilemap.pos.x == original_tile_x and
+                        tile_data['y'] - tilemap.pos.y == original_tile_y):
+                        if 'solid' in tile_data.get('properties', []):
+                            tile_top = tile_data['y'] * tilemap.tile_size
                             if abs(self.rect.bottom - tile_top) <= 2:
                                 return True
         return False
@@ -365,21 +383,21 @@ class Player(Sprite):
             bottom_tile = int(self.rect.bottom - 1 - tilemap.pos.y * tilemap.tile_size) // tilemap.tile_size
 
             for tile_y in range(top_tile, bottom_tile + 1):
-                for (tx, ty), tile in tilemap.tile_map.items():
-                    if (tile['x'] - tilemap.pos.x == left_tile and
-                        tile['y'] - tilemap.pos.y == tile_y):
-                        if 'solid' in tile.get('properties', []):
-                            tile_right = (tile['x'] + 1) * tilemap.tile_size
-                            if self.rect.left < tile_right and self.rect.right > tile['x'] * tilemap.tile_size:
+                for tile_key, tile_data in tilemap.tile_map.items():
+                    if (tile_data['x'] - tilemap.pos.x == left_tile and
+                        tile_data['y'] - tilemap.pos.y == tile_y):
+                        if 'solid' in tile_data.get('properties', []):
+                            tile_right = (tile_data['x'] + 1) * tilemap.tile_size
+                            if self.rect.left < tile_right and self.rect.right > tile_data['x'] * tilemap.tile_size:
                                 return True
 
             for tile_y in range(top_tile, bottom_tile + 1):
-                for (tx, ty), tile in tilemap.tile_map.items():
-                    if (tile['x'] - tilemap.pos.x == right_tile and
-                        tile['y'] - tilemap.pos.y == tile_y):
-                        if 'solid' in tile.get('properties', []):
-                            tile_left = tile['x'] * tilemap.tile_size
-                            if self.rect.right > tile_left and self.rect.left < (tile['x'] + 1) * tilemap.tile_size:
+                for tile_key, tile_data in tilemap.tile_map.items():
+                    if (tile_data['x'] - tilemap.pos.x == right_tile and
+                        tile_data['y'] - tilemap.pos.y == tile_y):
+                        if 'solid' in tile_data.get('properties', []):
+                            tile_left = tile_data['x'] * tilemap.tile_size
+                            if self.rect.right > tile_left and self.rect.left < (tile_data['x'] + 1) * tilemap.tile_size:
                                 return True
         return False
 
@@ -395,14 +413,15 @@ class Player(Sprite):
 
             if self.velocity.y >= 0:
                 for tile_x in range(left_tile, right_tile + 1):
-                    for (tx, ty), tile in tilemap.tile_map.items():
-                        if (tile['x'] - tilemap.pos.x == tile_x and
-                            tile['y'] - tilemap.pos.y >= bottom_tile and
-                            tile['y'] - tilemap.pos.y <= bottom_tile + 1):
-                            if 'solid' in tile.get('properties', []):
-                                tile_top = tile['y'] * tilemap.tile_size
+                    for tile_key, tile_data in tilemap.tile_map.items():
+                        x = tile_data['x'] - tilemap.pos.x == tile_x
+                        y = tile_data['y'] - tilemap.pos.y >= bottom_tile
+                        y_off = tile_data['y'] - tilemap.pos.y <= bottom_tile + 1
+                        if x and y and y_off:
+                            if 'solid' in tile_data.get('properties', []):
+                                tile_top = tile_data['y'] * tilemap.tile_size
                                 tile_bottom = tile_top + tilemap.tile_size
-                                tile_left = tile['x'] * tilemap.tile_size
+                                tile_left = tile_data['x'] * tilemap.tile_size
                                 tile_right = tile_left + tilemap.tile_size
 
                                 if (self.rect.bottom > tile_top and
@@ -414,12 +433,12 @@ class Player(Sprite):
 
             if self.velocity.y < 0:
                 for tile_x in range(left_tile, right_tile + 1):
-                    for (tx, ty), tile in tilemap.tile_map.items():
-                        if (tile['x'] - tilemap.pos.x == tile_x and
-                            tile['y'] - tilemap.pos.y == top_tile):
-                            if 'solid' in tile.get('properties', []):
-                                tile_bottom = (tile['y'] + 1) * tilemap.tile_size
-                                tile_left = tile['x'] * tilemap.tile_size
+                    for tile_key, tile_data in tilemap.tile_map.items():
+                        if (tile_data['x'] - tilemap.pos.x == tile_x and
+                            tile_data['y'] - tilemap.pos.y == top_tile):
+                            if 'solid' in tile_data.get('properties', []):
+                                tile_bottom = (tile_data['y'] + 1) * tilemap.tile_size
+                                tile_left = tile_data['x'] * tilemap.tile_size
                                 tile_right = tile_left + tilemap.tile_size
 
                                 if (self.rect.top <= tile_bottom and

@@ -3,7 +3,6 @@ import pygame
 
 class Timer:
     def __init__(self, duration, func=None):
-        # duration provided in seconds for convenience
         self.duration_ms = int(duration * 1000)
         self.func = func
         self.start_time = 0
