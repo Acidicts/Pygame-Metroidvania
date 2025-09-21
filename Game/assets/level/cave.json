@@ -5,19 +5,26 @@
   "environment": "cave",
   "layers": [
     {
+        "type": "enemies",
+        "name": "Enemies",
+        "data": [
+            {"x": 4, "y": 9, "z": 0, "id": 0, "type": "cave", "variant": 0, "properties": ["repeat"], "offset": [0, 0]}
+        ]
+    },
+    {
       "type": "tilelayer",
       "name": "Ground",
       "data": [
         {"x": 1, "y": 10, "z": 5, "w": 6, "h": 1, "type": "platform" ,"variant": 1, "properties": ["solid", "repeat", "dark"], "offset":  [0, 0],
-          "render_cut": [1, 0]
+          "render_cut": [1, 0], "solid_depth": 4
         },
         {"x": 7, "y": 9, "z": 5, "w": 5, "h": 1, "type": "platform" ,"variant": 1, "properties": ["solid", "repeat", "dark"], "offset":  [0, 0],
-          "render_cut": [1, 0]
+          "render_cut": [1, 0], "solid_depth": 4
         },
         {"x": 12, "y": 8, "z": 5, "w": 5, "h": 1, "type": "platform" ,"variant": 0, "properties": ["solid", "repeat", "dark"], "offset":  [0, 0],
-          "render_cut": [0, 0]},
+          "render_cut": [0, 0], "solid_depth": 4},
         {"x": 16, "y": 7, "z": 5, "w": 3, "h": 1, "type": "platform" ,"variant": 0, "properties": ["solid", "repeat", "dark"], "offset":  [0, 0],
-          "render_cut": [0, 0]}
+          "render_cut": [0, 0], "solid_depth": 4}
       ]
     },
     {

@@ -80,10 +80,19 @@ class Player(Sprite):
             "slashing": False,
             "double_slashing": False,
             "attack_press_time": 0,
+            "slash_damage_frames": 0,
+            "max_slash_damage_frames": 1,
+            "max_double_slash_damage_frames": 2,
+            "last_x_press_time": 0,
+            "double_tap_window": 300,
         })
         self.attacking_hitboxes = {
             "slash_right": pygame.Rect(self.game.screen.get_width()//2, self.game.screen.get_height()//2 + 10, 70, 15),
             "slash_left": pygame.Rect(self.game.screen.get_width()//2 - 70, self.game.screen.get_height()//2 + 10, 70, 15),
+        }
+        self.attacking_boolean = {
+            "slash": False,
+            "double_slash": False,
         }
 
     def controls(self):
@@ -116,46 +125,89 @@ class Player(Sprite):
         if self.attributes["jumping"] and self.velocity.y < 0:
             self.attributes["jumping"] = False
 
-        if keys[pygame.K_x] and not self.timers["attack_cooldown"].active:
-            if not self.attributes.get("slashing") and not self.attributes.get("double_slashing"):
-                self.attributes["slashing"] = True
-                self.attributes["attack_press_time"] = pygame.time.get_ticks()
-                self.frame = 0
-                self.velocity.x = 0
-                self.animation = "slash"
-                self.timers["attack_cooldown"].activate()
+    def handle_x_key_press(self):
+        current_time = pygame.time.get_ticks()
 
-    def update(self, dt):
+        if not self.attributes.get("slashing") and not self.attributes.get("double_slashing"):
+            time_since_last_press = current_time - self.attributes["last_x_press_time"]
+
+            if time_since_last_press <= self.attributes["double_tap_window"] and self.attributes["last_x_press_time"] > 0:
+                if not self.timers["attack_cooldown"].active:
+                    self.attributes["double_slashing"] = True
+                    self.attributes["slashing"] = False
+                    self.attributes["slash_damage_frames"] = 0
+                    self.frame = 0
+                    self.velocity.x = 0
+                    self.animation = "double_slash"
+                    self.timers["attack_cooldown"].activate()
+                    print(f"DOUBLE SLASH TRIGGERED! Time between presses: {time_since_last_press}ms")
+                else:
+                    print(f"Double tap detected but attack on cooldown! Time: {time_since_last_press}ms")
+            else:
+                if not self.timers["attack_cooldown"].active:
+                    self.attributes["slashing"] = True
+                    self.attributes["double_slashing"] = False
+                    self.attributes["attack_press_time"] = current_time
+                    self.attributes["slash_damage_frames"] = 0
+                    self.frame = 0
+                    self.velocity.x = 0
+                    self.animation = "slash"
+                    self.timers["attack_cooldown"].activate()
+                    print(f"SINGLE SLASH TRIGGERED! Time since last press: {time_since_last_press}ms")
+                else:
+                    print(f"Single tap detected but attack on cooldown! Time: {time_since_last_press}ms")
+
+            self.attributes["last_x_press_time"] = current_time
+
+    def update(self, dt, events=None):
         self.timers["attack_cooldown"].update()
 
         self.controls()
 
-        if self.attributes.get("slashing") or self.attributes.get("double_slashing"):
-            if self.attributes["flipped"]:
-                for enemy in self.game.enemies:
-                    rect = enemy.rect.copy()
-                    rect.topleft -= self.game.camera.offset
-                    if self.attacking_hitboxes["slash_left"].colliderect(rect):
-                        enemy.take_damage(1)
-                        if enemy.health <= 0:
-                            self.game.enemies.remove(enemy)
-            else:
-                for enemy in self.game.enemies:
-                    rect = enemy.rect.copy()
-                    rect.topleft -= self.game.camera.offset
-                    if self.attacking_hitboxes["slash_right"].colliderect(rect):
-                        enemy.take_damage(1)
-                        if enemy.health <= 0:
-                            self.game.enemies.remove(enemy)
+        if not self.attacking_boolean["slash"] and self.attributes.get("slashing"):
+            self.attacking_boolean["slash"] = True
+        if not self.attacking_boolean["double_slash"] and self.attributes.get("double_slash"):
+            # noinspection PyTypeChecker
+            self.attacking_boolean["double_slash"] = 1
 
-        keys = pygame.key.get_pressed()
-        if self.attributes.get("slashing") and not self.attributes.get("double_slashing"):
-            if keys[pygame.K_x]:
-                elapsed = pygame.time.get_ticks() - self.attributes.get("attack_press_time", 0)
-                if elapsed >= self.double_slash_hold_ms:
-                    self.attributes["double_slashing"] = True
-                    self.animation = "double_slash"
-                    self.frame = 0
+        if self.attributes.get("slashing") or self.attributes.get("double_slashing"):
+            max_damage_frames = self.attributes["max_double_slash_damage_frames"] if self.attributes.get("double_slashing") else self.attributes["max_slash_damage_frames"]
+
+            if self.attributes["slash_damage_frames"] == 0:
+                attack_type = "DOUBLE SLASH" if self.attributes.get("double_slashing") else "SINGLE SLASH"
+                print(f"DAMAGE DEALING: {attack_type} - Max frames: {max_damage_frames}")
+
+            if self.attributes["slash_damage_frames"] < max_damage_frames:
+                if self.attributes["flipped"]:
+                    for tilemap in self.game.tilemaps.values():
+                        if tilemap.rendered:
+                            for enemy in tilemap.enemies:
+                                rect = enemy.rect.copy()
+                                rect.topleft -= self.game.camera.offset
+                                if self.attacking_hitboxes["slash_left"].colliderect(rect):
+                                    enemy.take_damage(1)
+                                    print(f"Enemy hit! Frame {self.attributes['slash_damage_frames'] + 1} of {max_damage_frames}")
+                                    if enemy.health <= 0:
+                                        tilemap.enemies.remove(enemy)
+                else:
+                    for tilemap in self.game.tilemaps.values():
+                        if tilemap.rendered:
+                            for enemy in tilemap.enemies:
+                                rect = enemy.rect.copy()
+                                rect.topleft -= self.game.camera.offset
+                                if self.attacking_hitboxes["slash_right"].colliderect(rect):
+                                    enemy.take_damage(1)
+                                    print(f"Enemy hit! Frame {self.attributes['slash_damage_frames'] + 1} of {max_damage_frames}")
+                                    if enemy.health <= 0:
+                                        tilemap.enemies.remove(enemy)
+
+                self.attributes["slash_damage_frames"] += 1
+
+        if events:
+            for event in events:
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_x:
+                        self.handle_x_key_press()
 
         if self.attributes.get("slashing") or self.attributes.get("double_slashing"):
             current_anim_key = "double_slash" if self.attributes.get("double_slashing") else "slash"

@@ -1,5 +1,6 @@
 import pygame
 from Game.utils.config import *
+from Game.Sprites.Enemies.enemy import Enemy
 
 AUTOTILE_MAP = {
     tuple(sorted([(1, 0), (0, 1)])): 0,
@@ -54,6 +55,7 @@ class TileMap:
         self.pos = pygame.math.Vector2(*pos)
         self.sensors = {}
         self.rendered = rendered
+        self.enemies = []
 
     def load_map(self, path):
         with open(path, 'r') as f:
@@ -64,6 +66,13 @@ class TileMap:
         self.tile_size = data['tile_size']
 
         for layer in data['layers']:
+
+            if layer['type'] == 'enemies':
+                for enemy in layer['data']:
+                    enemy_id = enemy.get("id")
+                    if enemy_id is not None:
+                        self.enemies.append(Enemy(pos=(int(enemy['x']) * self.tile_size + self.pos.x * self.tile_size, int(enemy['y']) * self.tile_size + self.pos.y * self.tile_size), game=self.game, tilemap=self))
+                        print("Enemy added:", enemy_id)
 
             if layer['type'] == 'sensor_layer':
                 for sensor in layer['data']:
@@ -121,6 +130,22 @@ class TileMap:
                                         'variant': tile["variant"],
                                         'properties': tile["properties"]
                                     }
+                                if "dark" in tile["properties"]:
+                                    depth = int(tile["solid_depth"])
+                                    for x1 in range(tile["w"]):
+                                        for y1 in range(depth):
+                                            tile_x = int(tile['x'] + x1)
+                                            tile_y = int(tile['y'] + y1)
+                                            if (tile_x, tile_y) not in self.tile_map:
+                                                self.tile_map[(tile_x, tile_y)] = {
+                                                    'x': tile_x,
+                                                    'y': tile_y,
+                                                    'z': int(tile['z']),
+                                                    'environment': data['environment'],
+                                                    'type': tile["type"],
+                                                    'variant': "dark",
+                                                    'properties': [],
+                                                }
                     else:
                         x, y, z = tile['x'], tile['y'], tile['z']
                         self.tile_map[(x, y)] = {
@@ -174,13 +199,13 @@ class TileMap:
         config = get_config()
         screen_height = config["resolution"][1]
         for tile in self.tile_map.values():
-            if "dark" in tile["properties"]:
+            if tile["variant"] == "dark" or "dark" in tile.get("properties", []):
                 x = tile['x'] * self.tile_size - self.game.camera.offset.x
                 y = (tile['y']) * self.tile_size - self.game.camera.offset.y
                 width = self.tile_size
                 height = screen_height - y
                 if height > 0:
-                    pygame.draw.rect(surface, (0, 0, 0), (x, y, width, height))
+                    pygame.draw.rect(surface, (0, 0, 0), (x, y, self.tile_size, self.tile_size))
 
         for tile in self.tile_map.values():
             if tile.get("z") != layer:
@@ -191,6 +216,8 @@ class TileMap:
 
             env = tile.get('environment')
             ttype = tile.get('type')
+            if tile.get("variant") == "dark":
+                continue
             variant = int(tile.get('variant'))
 
             img = self.game.assets[env][ttype].get_images_list()[variant]

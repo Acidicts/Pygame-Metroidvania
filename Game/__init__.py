@@ -30,8 +30,6 @@ class Game:
         self.player = Player(pos=(get_config()["resolution"][0]/2, get_config()["resolution"][1]/2), game=self, tilemap=self.tilemap)
         self.num = 0
 
-        self.enemies = [Enemy(pos=(400, 300), game=self, tilemap=self.tilemap) for i in range(5)]
-
     def setup(self):
         self.assets = {
             "cave":
@@ -64,23 +62,25 @@ class Game:
             if tilemap.rendered:
                 tilemap.render(self.screen, (0, 0), 5)
 
-        for enemy in self.enemies:
-            enemy.draw(self.screen, self.camera.offset)
+                for enemy in tilemap.enemies:
+                    enemy.draw(self.screen, self.camera.offset)
 
         pygame.display.flip()
 
     def update(self, dt):
+        events = []
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
+            events.append(event)
 
         self.sprite_group.update(dt)
-        self.player.update(dt)
+        self.player.update(dt, events)
         for tilemap in self.tilemaps.values():
             tilemap.update()
-
-        for enemy in self.enemies:
-            enemy.update(dt)
+            if tilemap.rendered:
+                for enemy in tilemap.enemies:
+                    enemy.update(dt)
 
     def run(self):
         while self.running:

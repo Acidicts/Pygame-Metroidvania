@@ -3,28 +3,39 @@ import pygame
 
 
 class Enemy(PhysicsSprite):
-    def __init__(self,image=pygame.Surface((32, 32)), pos=(0, 0), game=None, tilemap=None):
+    def __init__(self,image=pygame.Surface((32, 32)), pos=(0, 0), game=None, tilemap=None, health=0):
         image.fill((255,0,0))
         super().__init__(image, pos, tilemap)
         self.velocity = pygame.math.Vector2(0, 0)
         self.acceleration = pygame.math.Vector2(0, 0)
         self.image.fill("red")
         self.rect = self.image.get_rect(topleft=pos)
-        self.health = 3
+        self.health = health
         self.tilemap = tilemap
         self.game = game
 
         self.direction = 1
-        self.speed = 2
+        self.speed = 1
 
         self.friction = -0.02
         self.gravity = 15
 
         self.hit = False
-        self.hit_cooldown = 0.5  * 1000
+        self.hit_cooldown = 0
+
+        self.stunned = False
+        self.stun_duration = 0.3 * 1000
+        self.stun_start_time = 0
+        self.knockback_force = 150
+        self.knockback_direction = 0
+
+        self.attributes = {}
 
     def update(self, dt=0):
-        self.acc.x = self.direction * self.speed * 5
+        if not self.stunned:
+            self.acc.x = self.direction * self.speed * 5
+        else:
+            self.acc.x = 0
 
         super().update(dt)
 
@@ -32,13 +43,21 @@ class Enemy(PhysicsSprite):
             self.hit = False
         elif self.hit:
             self.image.fill("yellow")
+        elif self.stunned:
+            self.image.fill("orange")
         else:
             self.image.fill("red")
+
+        if self.stunned:
+            if pygame.time.get_ticks() - self.stun_start_time >= self.stun_duration:
+                self.stunned = False
+            else:
+                self.vel.x *= 0.9
+                return
 
         if self.collisions["left"] or self.collisions["right"]:
             self.direction *= -1
             self.vel.x = 0
-
 
         if self.collisions["bottom"]:
             check_distance = self.rect.width + 5
@@ -68,11 +87,18 @@ class Enemy(PhysicsSprite):
                 self.direction *= -1
                 self.vel.x = 0
 
+
     def take_damage(self, amount):
         if not self.hit:
             self.health -= amount
             self.hit = pygame.time.get_ticks()
-            self.vel.x = 0
+            self.vel.x = self.direction * -50
+
+            self.knockback_direction = -self.direction
+            self.vel.x += self.knockback_direction * self.knockback_force
+
+            self.stunned = True
+            self.stun_start_time = pygame.time.get_ticks()
 
     def draw(self, surface, offset=pygame.math.Vector2(0, 0)):
         surface.blit(self.image, self.rect.topleft - offset)
