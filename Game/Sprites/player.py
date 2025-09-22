@@ -57,6 +57,15 @@ class Player(Sprite):
             "can_move": True,
             "flipped": False,
             "jump_strength": 500,
+
+            "health": 3,
+            "maxhealth": 3,
+
+            "stun": False,
+            "stun_cooldown": 200,
+            "dead": False,
+            "death_animation_complete": False,
+            "visible": True,
         }
 
         self.timers = {
@@ -84,7 +93,7 @@ class Player(Sprite):
             "max_slash_damage_frames": 1,
             "max_double_slash_damage_frames": 2,
             "last_x_press_time": 0,
-            "double_tap_window": 300,
+            "double_tap_window": 500,
         })
         self.attacking_hitboxes = {
             "slash_right": pygame.Rect(self.game.screen.get_width()//2, self.game.screen.get_height()//2 + 10, 70, 15),
@@ -140,9 +149,8 @@ class Player(Sprite):
                     self.velocity.x = 0
                     self.animation = "double_slash"
                     self.timers["attack_cooldown"].activate()
-                    print(f"DOUBLE SLASH TRIGGERED! Time between presses: {time_since_last_press}ms")
                 else:
-                    print(f"Double tap detected but attack on cooldown! Time: {time_since_last_press}ms")
+                    pass
             else:
                 if not self.timers["attack_cooldown"].active:
                     self.attributes["slashing"] = True
@@ -153,29 +161,85 @@ class Player(Sprite):
                     self.velocity.x = 0
                     self.animation = "slash"
                     self.timers["attack_cooldown"].activate()
-                    print(f"SINGLE SLASH TRIGGERED! Time since last press: {time_since_last_press}ms")
                 else:
-                    print(f"Single tap detected but attack on cooldown! Time: {time_since_last_press}ms")
+                    pass
 
             self.attributes["last_x_press_time"] = current_time
 
     def update(self, dt, events=None):
         self.timers["attack_cooldown"].update()
 
+        if self.timers["damage"] > 0:
+            self.timers["damage"] -= dt * 1000
+        if self.timers["invulnerability"] > 0:
+            self.timers["invulnerability"] -= dt * 1000
+
+        if self.timers["invulnerability"] <= 0 and self.attributes["damaged"]:
+            self.attributes["damaged"] = False
+
+        if self.animation == "hurt":
+            sprite_sheet, frame_duration, is_looping = self.animations["hurt"]
+            images = sprite_sheet.get_images_list()
+            if int(self.frame) >= len(images) - 1:
+                self.attributes["can_move"] = True
+                self.attributes["stun"] = False
+                self.animation = "idle"
+                self.frame = 0
+                if self.timers["invulnerability"] <= 0:
+                    self.timers["invulnerability"] = 500
+
+        if self.animation == "smoke_out" and self.attributes["dead"]:
+            sprite_sheet, frame_duration, is_looping = self.animations["smoke_out"]
+            images = sprite_sheet.get_images_list()
+            if int(self.frame) >= len(images) - 1:
+                self.attributes["death_animation_complete"] = True
+                self.attributes["visible"] = False
+                return
+
+        if self.attributes["stun"] and isinstance(self.attributes["stun"], (int, float)):
+            if pygame.time.get_ticks() - self.attributes["stun"] >= self.attributes["stun_cooldown"]:
+                self.attributes["stun"] = False
+                self.attributes["can_move"] = True
+
         self.controls()
 
-        if not self.attacking_boolean["slash"] and self.attributes.get("slashing"):
-            self.attacking_boolean["slash"] = True
-        if not self.attacking_boolean["double_slash"] and self.attributes.get("double_slash"):
-            # noinspection PyTypeChecker
-            self.attacking_boolean["double_slash"] = 1
+        if self.timers["invulnerability"] <= 0 and not self.attributes["damaged"]:
+            for tilemap in self.game.tilemaps.values():
+                if not tilemap.rendered:
+                    continue
+                for enemy in tilemap.enemies:
+                    if self.rect.colliderect(enemy.rect):
+                        self.attributes["health"] -= 1
+                        self.attributes["damaged"] = True
+                        self.timers["damage"] = 500
+
+                        self.timers["invulnerability"] = 2000
+
+                        if self.attributes["health"] <= 0:
+                            self.attributes["dead"] = True
+                            self.animation = "smoke_out"
+                            self.frame = 0
+                            self.velocity.x = 0
+                            self.velocity.y = 0
+                            self.attributes["can_move"] = False
+                        else:
+                            self.animation = "hurt"
+                            self.frame = 0
+                            enemy_center_x = enemy.rect.centerx
+                            player_center_x = self.rect.centerx
+                            knockback_direction = -1 if player_center_x > enemy_center_x else 1
+                            self.velocity.x = knockback_direction * 150
+                            self.velocity.y = -200
+                            self.attributes["can_move"] = False
+                            self.attributes["stun"] = pygame.time.get_ticks()
+                        break
+
 
         if self.attributes.get("slashing") or self.attributes.get("double_slashing"):
             max_damage_frames = self.attributes["max_double_slash_damage_frames"] if self.attributes.get("double_slashing") else self.attributes["max_slash_damage_frames"]
 
             if self.attributes["slash_damage_frames"] == 0:
                 attack_type = "DOUBLE SLASH" if self.attributes.get("double_slashing") else "SINGLE SLASH"
-                print(f"DAMAGE DEALING: {attack_type} - Max frames: {max_damage_frames}")
 
             if self.attributes["slash_damage_frames"] < max_damage_frames:
                 if self.attributes["flipped"]:
@@ -504,6 +568,10 @@ class Player(Sprite):
         return wall_collision or ground_collision
 
     def draw(self, surf):
+        # Don't draw if player is not visible (after death animation)
+        if not self.attributes["visible"]:
+            return
+
         if hasattr(self, 'image') and self.image:
             display_image = self.image
 

@@ -49,7 +49,7 @@ scale_sizing = {
 }
 
 class TileMap:
-    def __init__(self, game, tile_size=48, pos=(0, 0), rendered=False):
+    def __init__(self, game, tile_size=48, pos=(0, 0), rendered=False, overlay=None):
         self.game = game
         self.tile_size = tile_size
         self.tile_map = {}
@@ -58,6 +58,8 @@ class TileMap:
         self.sensors = {}
         self.rendered = rendered
         self.enemies = []
+
+        self.overlay = overlay
 
     def load_map(self, path):
         with open(path, 'r') as f:
@@ -256,6 +258,11 @@ class TileMap:
             if config.get("debug", {}).get("show_sensors", False):
                 rect = pygame.Rect(sensor["x"]*self.tile_size - self.game.camera.offset.x, sensor["y"]*self.tile_size - self.game.camera.offset.y, sensor["w"]*self.tile_size, sensor["h"]*self.tile_size)
                 pygame.draw.rect(surface, (255, 0, 0), rect, 1)
+
+        if self.overlay and self.rendered:
+            overlay_img = pygame.image.load(self.overlay).convert_alpha()
+            overlay_img = pygame.transform.scale(overlay_img, (self.width * self.tile_size, self.height * self.tile_size))
+            surface.blit(overlay_img, (-self.game.camera.offset.x, -self.game.camera.offset.y))
 
     def is_solid(self, pos, offset):
         x = pos[0] // self.tile_size

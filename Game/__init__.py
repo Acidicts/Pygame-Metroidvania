@@ -1,3 +1,5 @@
+import pygame.font
+
 from Game.Sprites.player import Player
 
 from Game.utils.camera import Camera
@@ -6,6 +8,7 @@ from Game.utils.utils import *
 from Game.utils.spritegroup import SpriteGroup
 from Game.utils.tilemaps import TileMap
 from Game.Sprites.Enemies.enemy import Enemy
+from Game.utils.hud import Hud
 
 
 class Game:
@@ -30,8 +33,22 @@ class Game:
         self.player = Player(pos=(get_config()["resolution"][0]/2, get_config()["resolution"][1]/2), game=self, tilemap=self.tilemap)
         self.num = 0
 
+        self.hud = Hud(self)
+
+        pygame.font.init()
+        self.font = pygame.font.Font("Game/assets/fonts/workbench.ttf", 36)
+
     def setup(self):
         self.assets = {
+            "hud":
+                {
+                    "heart": {
+                        "full": load_image("hud/Heart Container Silver/heart_silver_full.png"),
+                        "shine": SpriteSheet("hud/Heart Container Silver/heart_silver_shine_full.png", tile_size=16),
+                        "blink": SpriteSheet("hud/Heart Container Silver/heart_silver_blink_full.png", tile_size=16),
+                        "empty": load_image("hud/Heart Container General/heart_empty.png"),
+                    },
+                },
             "cave":
                 {
                     "big_rocks": SpriteSheet("cave_tiles/Cave - BigRocks1.png", cut=load_json_as_dict("cut_tiles_json/Cave-BigRocks1.json")),
@@ -65,6 +82,8 @@ class Game:
                 for enemy in tilemap.enemies:
                     enemy.draw(self.screen, self.camera.offset)
 
+        self.hud.draw(self.screen)
+
         pygame.display.flip()
 
     def update(self, dt):
@@ -76,6 +95,7 @@ class Game:
 
         self.sprite_group.update(dt)
         self.player.update(dt, events)
+        self.hud.update(dt)  # Add HUD update for shine animations
         for tilemap in self.tilemaps.values():
             tilemap.update()
             if tilemap.rendered:

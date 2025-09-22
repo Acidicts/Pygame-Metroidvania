@@ -35,3 +35,5 @@ A 2D Metroidvania game built using Python and Pygame.
 ## Credits
 - Tiles and plants https://maaot.itch.io/
 - Player Character https://jesshiyoo.itch.io/little-riven
+- Hud https://snoblin.itch.io/animated-hud-pixel-rpg
+- Workbench Font https://fonts.google.com/specimen/Workbench?preview.size=64
