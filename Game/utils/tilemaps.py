@@ -1,4 +1,6 @@
 import pygame
+
+from Game.Sprites.Enemies.flying_enemy import FlyingEnemy
 from Game.utils.config import *
 from Game.Sprites.Enemies.enemy import Enemy
 
@@ -72,7 +74,9 @@ class TileMap:
                     enemy_id = enemy.get("id")
                     if enemy_id is not None:
                         self.enemies.append(Enemy(pos=(int(enemy['x']) * self.tile_size + self.pos.x * self.tile_size, int(enemy['y']) * self.tile_size + self.pos.y * self.tile_size), game=self.game, tilemap=self))
-                        print("Enemy added:", enemy_id)
+
+                    if "flying" in enemy["properties"]:
+                        self.enemies.append(FlyingEnemy(pos=(int(enemy['x']) * self.tile_size + self.pos.x * self.tile_size, int(enemy['y']) * self.tile_size + self.pos.y * self.tile_size), game=self.game, tilemaps=[self], move_axis=pygame.Vector2(*enemy["move_axis"])))
 
             if layer['type'] == 'sensor_layer':
                 for sensor in layer['data']:
@@ -144,7 +148,7 @@ class TileMap:
                                                     'environment': data['environment'],
                                                     'type': tile["type"],
                                                     'variant': "dark",
-                                                    'properties': [],
+                                                    'properties': ["solid"],
                                                 }
                     else:
                         x, y, z = tile['x'], tile['y'], tile['z']

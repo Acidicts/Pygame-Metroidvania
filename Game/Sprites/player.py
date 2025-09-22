@@ -186,7 +186,6 @@ class Player(Sprite):
                                 rect.topleft -= self.game.camera.offset
                                 if self.attacking_hitboxes["slash_left"].colliderect(rect):
                                     enemy.take_damage(1)
-                                    print(f"Enemy hit! Frame {self.attributes['slash_damage_frames'] + 1} of {max_damage_frames}")
                                     if enemy.health <= 0:
                                         tilemap.enemies.remove(enemy)
                 else:
@@ -197,7 +196,6 @@ class Player(Sprite):
                                 rect.topleft -= self.game.camera.offset
                                 if self.attacking_hitboxes["slash_right"].colliderect(rect):
                                     enemy.take_damage(1)
-                                    print(f"Enemy hit! Frame {self.attributes['slash_damage_frames'] + 1} of {max_damage_frames}")
                                     if enemy.health <= 0:
                                         tilemap.enemies.remove(enemy)
 
