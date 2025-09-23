@@ -44,6 +44,7 @@ class Game:
                 {
                     "heart": {
                         "full": load_image("hud/Heart Container Silver/heart_silver_full.png"),
+                        "half": load_image("hud/Heart Container Silver/heart_silver_half.png"),
                         "shine": SpriteSheet("hud/Heart Container Silver/heart_silver_shine_full.png", tile_size=16),
                         "blink": SpriteSheet("hud/Heart Container Silver/heart_silver_blink_full.png", tile_size=16),
                         "empty": load_image("hud/Heart Container General/heart_empty.png"),
