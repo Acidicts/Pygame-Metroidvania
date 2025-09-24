@@ -3,7 +3,7 @@ import pygame
 
 
 class Enemy(PhysicsSprite):
-    def __init__(self,image=pygame.Surface((32, 32)), pos=(0, 0), game=None, tilemap=None, health=0):
+    def __init__(self,image=pygame.Surface((32, 32)), pos=(0, 0), game=None, tilemap=None, health=0, drop=0):
         image.fill((255,0,0))
         super().__init__(image, pos, tilemap)
         self.velocity = pygame.math.Vector2(0, 0)
@@ -13,6 +13,8 @@ class Enemy(PhysicsSprite):
         self.health = health
         self.tilemap = tilemap
         self.game = game
+
+        self.drop = drop
 
         self.direction = 1
         self.speed = 1

@@ -19,6 +19,10 @@ class Hud:
 
         self.fadeout = Fadeout(duration=3, color=(0, 0, 0))
 
+        self.crystal_icon = pygame.Surface((16, 16))
+        self.crystal_icon.fill((0, 255, 255))  # Cyan color as placeholder
+        pygame.draw.circle(self.crystal_icon, (255, 255, 255), (8, 8), 6, 2)  # White outline
+
         base_delay = 0.5
         self.hearts = {
             "1": {"pos": (20, 12), "state": "full", "animation_state": ("startup_empty", -int((base_delay + 0.1) * 60)), "rect": pygame.Rect(20, 20, self.heart_size, self.heart_size), "shine_timer": random.uniform(0, self.shine_interval)},
@@ -95,7 +99,7 @@ class Hud:
         else:
             self.fadeout.draw(screen)
             if self.fadeout.opacity >= 255:
-                text_surface = self.game.font.render("You Died", True, (255, 255, 255))
+                text_surface = self.game.fonts["workbench"].render("You Died", True, (255, 255, 255))
                 text_surface = pygame.transform.scale(text_surface, (text_surface.get_width() * 4, text_surface.get_height() * 4))
                 text_rect = text_surface.get_rect(center=(self.game.screen.get_width() // 2, self.game.screen.get_height() // 2))
                 screen.blit(text_surface, text_rect)
@@ -130,10 +134,11 @@ class Hud:
                 # Current heart is full, trigger next heart to blink
                 self.hearts[next_heart]["animation_state"] = ("blink", 0)
 
+        # Draw background for HUD
         if self.player.attributes["maxhealth"] >= 5:
-            pygame.draw.rect(screen, (0, 0, 0), (15, 10, 130, 40), border_radius=8)
+            pygame.draw.rect(screen, (0, 0, 0), (15, 10, 130, 65), border_radius=8)
         else:
-            pygame.draw.rect(screen, (0, 0, 0), (12, 10, 90, 40), border_radius=8)
+            pygame.draw.rect(screen, (0, 0, 0), (12, 10, 90, 65), border_radius=8)
 
         for heart in self.hearts:
             heart_data = self.hearts[heart]
@@ -179,3 +184,9 @@ class Hud:
                 elif heart_data["state"] == "empty":
                     image = pygame.transform.scale(self.hearts_assets["empty"], (self.heart_size, self.heart_size))
                     screen.blit(image, heart_data["pos"])
+
+        screen.blit(self.crystal_icon, (20, 47))
+        text_surface = self.game.fonts["Arial"].render(str(self.player.crystals), True, (255, 255, 255))
+        screen.blit(text_surface, (40, 45))
+
+

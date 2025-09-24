@@ -55,9 +55,11 @@ class TileMap:
         self.tile_map = {}
         self.off_grid_tiles = []
         self.pos = pygame.math.Vector2(*pos)
-        self.sensors = {}
         self.rendered = rendered
+
+        self.sensors = {}
         self.enemies = []
+        self.crystals = []
 
         self.overlay = overlay
 
@@ -75,10 +77,10 @@ class TileMap:
                 for enemy in layer['data']:
                     enemy_id = enemy.get("id")
                     if enemy_id is not None and "flying" not in enemy["properties"]:
-                        self.enemies.append(Enemy(pos=(int(enemy['x']) * self.tile_size + self.pos.x * self.tile_size, int(enemy['y']) * self.tile_size + self.pos.y * self.tile_size), game=self.game, tilemap=self))
+                        self.enemies.append(Enemy(pos=(int(enemy['x']) * self.tile_size + self.pos.x * self.tile_size, int(enemy['y']) * self.tile_size + self.pos.y * self.tile_size), game=self.game, tilemap=self, drop=enemy["drop"]))
 
                     if "flying" in enemy["properties"]:
-                        self.enemies.append(FlyingEnemy(pos=(int(enemy['x']) * self.tile_size + self.pos.x * self.tile_size, int(enemy['y']) * self.tile_size + self.pos.y * self.tile_size), game=self.game, tilemaps=[self], move_axis=pygame.Vector2(*enemy["move_axis"])))
+                        self.enemies.append(FlyingEnemy(pos=(int(enemy['x']) * self.tile_size + self.pos.x * self.tile_size, int(enemy['y']) * self.tile_size + self.pos.y * self.tile_size), game=self.game, tilemaps=[self], tilemap=self, move_axis=pygame.Vector2(*enemy["move_axis"]), drop=enemy["drop"]))
 
             if layer['type'] == 'sensor_layer':
                 for sensor in layer['data']:
@@ -258,6 +260,9 @@ class TileMap:
             if config.get("debug", {}).get("show_sensors", False):
                 rect = pygame.Rect(sensor["x"]*self.tile_size - self.game.camera.offset.x, sensor["y"]*self.tile_size - self.game.camera.offset.y, sensor["w"]*self.tile_size, sensor["h"]*self.tile_size)
                 pygame.draw.rect(surface, (255, 0, 0), rect, 1)
+
+        for crystal in self.crystals:
+            crystal.draw(surface, (self.game.camera.offset.x, self.game.camera.offset.y))
 
         if self.overlay and self.rendered:
             overlay_img = pygame.image.load(self.overlay).convert_alpha()

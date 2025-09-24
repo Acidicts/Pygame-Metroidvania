@@ -1,5 +1,6 @@
 import pygame
 from Game.Sprites.sprite import Sprite
+from Game.Sprites.crystals import Crystal
 from Game.utils.utils import SpriteSheet
 from Game.utils.timer import Timer
 
@@ -29,6 +30,9 @@ class Player(Sprite):
             "smoke_out": (SpriteSheet("little_riven/Smoke Out.png", tile_size=144, colorkey=(0, 0, 0)), 10, False),
             "special_skill": (SpriteSheet("little_riven/Special Skill.png", tile_size=144, colorkey=(0, 0, 0)), 10, False),
         }
+
+        self.crystals = 0
+
         self.animation = "idle"
         self.frame = 0
 
@@ -205,6 +209,11 @@ class Player(Sprite):
 
         if self.timers["invulnerability"] <= 0 and not self.attributes["damaged"]:
             for tilemap in self.game.tilemaps.values():
+                for crystal in tilemap.crystals:
+                    if self.rect.colliderect(crystal.rect):
+                        self.crystals += crystal.value
+                        tilemap.crystals.remove(crystal)
+                        break
                 if not tilemap.rendered:
                     continue
                 for enemy in tilemap.enemies:
@@ -251,6 +260,7 @@ class Player(Sprite):
                                 if self.attacking_hitboxes["slash_left"].colliderect(rect):
                                     enemy.take_damage(1)
                                     if enemy.health <= 0:
+                                        enemy.tilemap.crystals.append(Crystal((enemy.rect.x, enemy.rect.y), enemy.drop))
                                         tilemap.enemies.remove(enemy)
                 else:
                     for tilemap in self.game.tilemaps.values():
@@ -261,6 +271,7 @@ class Player(Sprite):
                                 if self.attacking_hitboxes["slash_right"].colliderect(rect):
                                     enemy.take_damage(1)
                                     if enemy.health <= 0:
+                                        enemy.tilemap.crystals.append(Crystal((enemy.rect.x, enemy.rect.y), enemy.drop))
                                         tilemap.enemies.remove(enemy)
 
                 self.attributes["slash_damage_frames"] += 1

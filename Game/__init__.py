@@ -36,7 +36,10 @@ class Game:
         self.hud = Hud(self)
 
         pygame.font.init()
-        self.font = pygame.font.Font("Game/assets/fonts/workbench.ttf", 36)
+        self.fonts = {
+            "workbench": pygame.font.Font("Game/assets/fonts/workbench.ttf", 36),
+            "Arial": pygame.font.SysFont("Arial", 16)
+        }
 
     def setup(self):
         self.assets = {
