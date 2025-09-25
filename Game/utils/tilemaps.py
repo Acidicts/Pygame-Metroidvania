@@ -92,7 +92,7 @@ class TileMap:
                             'y': int(sensor['y']),
                             'w': int(sensor['w']),
                             'h': int(sensor['h']),
-                            'properties': sensor.get('properties', []),  # Keep as list
+                            'properties': sensor.get('properties', []),
                             'triggered': False,
                             "id": sensor_id
                         }
@@ -286,7 +286,9 @@ class TileMap:
                 return False
         return False
 
-    def update(self):
+    def update(self, dt):
+        for crystal in self.crystals:
+            crystal.update(dt)
         for sensor in self.sensors.values():
             if sensor["type"] == "render":
                 rect = pygame.Rect(sensor["x"] * self.tile_size,

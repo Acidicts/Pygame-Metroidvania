@@ -2,6 +2,7 @@ import pygame
 import random
 
 from Game.utils.transisitions import Fadeout
+from Game.utils.utils import load_image
 
 
 class Hud:
@@ -185,7 +186,7 @@ class Hud:
                     image = pygame.transform.scale(self.hearts_assets["empty"], (self.heart_size, self.heart_size))
                     screen.blit(image, heart_data["pos"])
 
-        screen.blit(self.crystal_icon, (20, 47))
+        screen.blit(load_image("miscellaneous/crystal.png", size=(16, 16)), (20, 47))
         text_surface = self.game.fonts["Arial"].render(str(self.player.crystals), True, (255, 255, 255))
         screen.blit(text_surface, (40, 45))
 

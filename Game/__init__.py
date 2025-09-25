@@ -34,6 +34,7 @@ class Game:
         self.num = 0
 
         self.hud = Hud(self)
+        self.clock = pygame.time.Clock()
 
         pygame.font.init()
         self.fonts = {
@@ -99,16 +100,16 @@ class Game:
 
         self.sprite_group.update(dt)
         self.player.update(dt, events)
-        self.hud.update(dt)  # Add HUD update for shine animations
+        self.hud.update(dt)
         for tilemap in self.tilemaps.values():
-            tilemap.update()
+            tilemap.update(dt)
             if tilemap.rendered:
                 for enemy in tilemap.enemies:
                     enemy.update(dt)
 
     def run(self):
         while self.running:
-            dt = pygame.time.Clock().tick(60) / 1000
+            dt = self.clock.tick(60) / 1000
 
             self.draw()
             self.update(dt)

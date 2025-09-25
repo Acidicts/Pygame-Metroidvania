@@ -5,13 +5,13 @@ import json
 BASE_IMG_PATH = "Game/assets/"
 TILE_SIZE = 48
 
-def load_image(path, colorkey=None):
+def load_image(path, colorkey=None, size=None):
     img = pygame.image.load(BASE_IMG_PATH + path)
-    # preserve per-pixel alpha when available
+    if size is not None:
+        img = pygame.transform.scale(img, size)
     try:
         img = img.convert_alpha()
     except Exception:
-        # If no display mode is set, don't convert
         pass
     if colorkey is not None:
         img.set_colorkey(colorkey)

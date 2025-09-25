@@ -16,10 +16,10 @@
       "type": "tilelayer",
       "name": "Ground",
       "data": [
-        {"x": -2, "y": 5, "z": 5, "w": 9, "h": 1, "type": "platform" ,"variant": 1, "properties": ["solid", "repeat"], "offset": [0, 0],
+        {"x": -4, "y": 5, "z": 5, "w": 11, "h": 1, "type": "platform" ,"variant": 1, "properties": ["solid", "repeat"], "offset": [0, 0],
           "render_cut": [1, 0]
         },
-        {"x": 1, "y": 10, "z": 5, "w": 6, "h": 1, "type": "platform" ,"variant": 1, "properties": ["solid", "repeat", "dark"], "offset":  [0, 0],
+        {"x": -4, "y": 10, "z": 5, "w": 11, "h": 1, "type": "platform" ,"variant": 1, "properties": ["solid", "repeat", "dark"], "offset":  [0, 0],
           "render_cut": [1, 0], "solid_depth": 4
         },
         {"x": 7, "y": 9, "z": 5, "w": 5, "h": 1, "type": "platform" ,"variant": 1, "properties": ["solid", "repeat", "dark"], "offset":  [0, 0],

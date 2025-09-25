@@ -260,7 +260,7 @@ class Player(Sprite):
                                 if self.attacking_hitboxes["slash_left"].colliderect(rect):
                                     enemy.take_damage(1)
                                     if enemy.health <= 0:
-                                        enemy.tilemap.crystals.append(Crystal((enemy.rect.x, enemy.rect.y), enemy.drop))
+                                        enemy.tilemap.crystals.append(Crystal((enemy.rect.x, enemy.rect.y), enemy.drop, self.game))
                                         tilemap.enemies.remove(enemy)
                 else:
                     for tilemap in self.game.tilemaps.values():
@@ -271,7 +271,7 @@ class Player(Sprite):
                                 if self.attacking_hitboxes["slash_right"].colliderect(rect):
                                     enemy.take_damage(1)
                                     if enemy.health <= 0:
-                                        enemy.tilemap.crystals.append(Crystal((enemy.rect.x, enemy.rect.y), enemy.drop))
+                                        enemy.tilemap.crystals.append(Crystal((enemy.rect.x, enemy.rect.y), enemy.drop, self.game))
                                         tilemap.enemies.remove(enemy)
 
                 self.attributes["slash_damage_frames"] += 1
