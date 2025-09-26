@@ -5,6 +5,13 @@
   "environment": "cave",
   "layers": [
     {
+        "type": "chests",
+        "name": "Chests",
+        "data": [
+          {"x": 0, "y": 8, "z": 5, "contains": ["crystal 5"]}
+        ]
+    },
+    {
         "type": "enemies",
         "name": "Enemies",
         "data": [

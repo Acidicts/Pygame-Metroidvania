@@ -3,6 +3,7 @@ import pygame
 from Game.Sprites.Enemies.flying_enemy import FlyingEnemy
 from Game.utils.config import *
 from Game.Sprites.Enemies.enemy import Enemy
+from Game.Sprites.Inanimate.chest import Chest
 
 AUTOTILE_MAP = {
     tuple(sorted([(1, 0), (0, 1)])): 0,
@@ -60,6 +61,8 @@ class TileMap:
         self.sensors = {}
         self.enemies = []
         self.crystals = []
+        self.items = []
+        self.chests = []
 
         self.overlay = overlay
 
@@ -72,6 +75,9 @@ class TileMap:
         self.tile_size = data['tile_size']
 
         for layer in data['layers']:
+            if layer['type'] == 'chests':
+                for chest in layer['data']:
+                    self.chests.append(Chest(pos=(int(chest['x']) * self.tile_size + self.pos.x * self.tile_size, int(chest['y']) * self.tile_size + self.pos.y * self.tile_size), game=self.game, tilemap=self, contains=chest["contains"]))
 
             if layer['type'] == 'enemies':
                 for enemy in layer['data']:
@@ -215,6 +221,12 @@ class TileMap:
                 if height > 0:
                     pygame.draw.rect(surface, (0, 0, 0), (x, y, self.tile_size, self.tile_size))
 
+        for chest in self.chests:
+            chest.draw(surface, (self.game.camera.offset.x, self.game.camera.offset.y))
+
+        for item in self.items:
+            item.draw(surface, (self.game.camera.offset.x, self.game.camera.offset.y))
+
         for tile in self.tile_map.values():
             if tile.get("z") != layer:
                 continue
@@ -287,8 +299,15 @@ class TileMap:
         return False
 
     def update(self, dt):
+        for chest in self.chests:
+            chest.update(dt)
+
+        for item in self.items:
+            item.update(dt)
+
         for crystal in self.crystals:
             crystal.update(dt)
+
         for sensor in self.sensors.values():
             if sensor["type"] == "render":
                 rect = pygame.Rect(sensor["x"] * self.tile_size,

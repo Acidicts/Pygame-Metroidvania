@@ -12,8 +12,8 @@ class Sprite(pygame.sprite.Sprite):
         self.rect.x += dx
         self.rect.y += dy
 
-    def draw(self, surf):
-        surf.blit(self.image, self.rect)
+    def draw(self, surf, offset=(0, 0)):
+        surf.blit(self.image, self.rect.topleft - pygame.math.Vector2(offset))
 
     def update(self, dt):
         pass
