@@ -248,7 +248,7 @@ class Player(Sprite):
             max_damage_frames = self.attributes["max_double_slash_damage_frames"] if self.attributes.get("double_slashing") else self.attributes["max_slash_damage_frames"]
 
             if self.attributes["slash_damage_frames"] == 0:
-                attack_type = "DOUBLE SLASH" if self.attributes.get("double_slashing") else "SINGLE SLASH"
+                pass
 
             if self.attributes["slash_damage_frames"] < max_damage_frames:
                 if self.attributes["flipped"]:
@@ -578,8 +578,7 @@ class Player(Sprite):
         ground_collision = self.check_ground_collisions()
         return wall_collision or ground_collision
 
-    def draw(self, surf):
-        # Don't draw if player is not visible (after death animation)
+    def draw(self, surf, offset=(0, 0)):
         if not self.attributes["visible"]:
             return
 

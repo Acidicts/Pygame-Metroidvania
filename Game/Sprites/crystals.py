@@ -21,7 +21,7 @@ class Crystal(PhysicsSprite):
 
         self.rotation_angle = 0
 
-    def draw(self, screen, offset):
+    def draw(self, screen, offset=(0, 0)):
         screen.blit(self.image, (self.rect.x - offset[0], self.rect.y - offset[1]))
 
     def update(self, dt):

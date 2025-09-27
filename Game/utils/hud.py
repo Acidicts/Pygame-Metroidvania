@@ -175,7 +175,7 @@ class Hud:
                     elif heart_data["animation_state"][0] == "blink":
                         frame = heart_data["animation_state"][1] // 5
                         frame_count = len(self.hearts_assets["blink"].images)
-                        if frame >= 0 and frame < frame_count:
+                        if frame_count > frame >= 0:
                             image = pygame.transform.scale(self.hearts_assets["blink"].images[list(self.hearts_assets["blink"].images.keys())[frame]], (self.heart_size, self.heart_size))
                             screen.blit(image, heart_data["pos"])
                         elif frame < 0:

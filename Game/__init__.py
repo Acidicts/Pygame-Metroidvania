@@ -76,7 +76,7 @@ class Game:
 
     def draw(self):
         self.screen.fill("#000F17")
-        self.player.draw(self.screen)
+        self.player.draw(self.screen, (0, 0))
 
         self.sprite_group.draw(self.screen, self.camera.offset)
 

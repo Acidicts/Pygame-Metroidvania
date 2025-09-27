@@ -3,7 +3,7 @@ import pygame
 from Game.Sprites.sprite import Sprite
 
 class FlyingEnemy(Sprite):
-    def __init__(self, game, pos, image=pygame.Surface((32, 32)), tilemaps=[], tilemap=None, move_axis=pygame.Vector2(0, 0), drop=0):
+    def __init__(self, game, pos, image=pygame.Surface((32, 32)), tilemaps=None, tilemap=None, move_axis=pygame.Vector2(0, 0), drop=0):
         super().__init__(image, pos)
         self.game = game
         self.tilemaps = tilemaps

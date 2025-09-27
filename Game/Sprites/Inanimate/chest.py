@@ -4,7 +4,7 @@ from Game.Sprites.sprite import Sprite
 from Game.Sprites.Inanimate.item import Item
 
 class Chest(Sprite):
-    def __init__(self, pos, game, tilemap, contains=[]):
+    def __init__(self, pos, game, tilemap, contains=None):
         self.image_closed = pygame.surface.Surface((32, 32))
         self.image_closed.fill((139,69,19))
         self.image_opened = pygame.surface.Surface((32, 32))
@@ -18,9 +18,8 @@ class Chest(Sprite):
         self.contains = contains
         self.image = self.image_closed
 
-        # Create a more accurate hitbox that's slightly smaller than the full image
-        # This makes the chest easier to interact with and more visually accurate
-        self.rect = pygame.Rect(pos[0] + 2, pos[1] + 4, 28, 26)
+        self.rect = self.image.get_rect()
+        self.rect.topright = pos
         self.opened = False
 
     def open(self):

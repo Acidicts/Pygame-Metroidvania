@@ -11,7 +11,7 @@ def load_image(path, colorkey=None, size=None):
         img = pygame.transform.scale(img, size)
     try:
         img = img.convert_alpha()
-    except Exception:
+    except FileNotFoundError:
         pass
     if colorkey is not None:
         img.set_colorkey(colorkey)
@@ -62,7 +62,7 @@ class SpriteSheet:
             # be defensive: allow JSON lists/tuples and skip invalid entries
             try:
                 x, y, w, h = tuple(rect_vals)
-            except Exception:
+            except (TypeError, ValueError):
                 continue
             if w > 0 and h > 0:
                 temp = pygame.Surface((w, h), flags=pygame.SRCALPHA)

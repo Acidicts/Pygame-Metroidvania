@@ -66,8 +66,12 @@ class TileMap:
 
         self.overlay = overlay
 
-    def load_map(self, path):
-        with open(path, 'r') as f:
+        self.width = 0
+        self.height = 0
+        self.tile_size = 0
+
+    def load_map(self, p):
+        with open(p, 'r') as f:
             data = json.load(f)
 
         self.width = data['width']
@@ -197,7 +201,7 @@ class TileMap:
                 props = neighbor_tile.get('properties', [])
                 try:
                     is_solid = ('solid' in props)
-                except Exception:
+                except TypeError:
                     is_solid = False
 
                 if is_solid:
@@ -216,16 +220,15 @@ class TileMap:
             if tile["variant"] == "dark" or "dark" in tile.get("properties", []):
                 x = tile['x'] * self.tile_size - self.game.camera.offset.x
                 y = (tile['y']) * self.tile_size - self.game.camera.offset.y
-                width = self.tile_size
                 height = screen_height - y
                 if height > 0:
                     pygame.draw.rect(surface, (0, 0, 0), (x, y, self.tile_size, self.tile_size))
 
         for chest in self.chests:
-            chest.draw(surface, (self.game.camera.offset.x, self.game.camera.offset.y))
+            chest.draw(surface, (camera_offset.x, camera_offset.y))
 
         for item in self.items:
-            item.draw(surface, (self.game.camera.offset.x, self.game.camera.offset.y))
+            item.draw(surface, (camera_offset.x, camera_offset.y))
 
         for tile in self.tile_map.values():
             if tile.get("z") != layer:
@@ -246,19 +249,19 @@ class TileMap:
 
             try:
                 img = pygame.transform.scale(img, (scale_sizing[env][ttype].get(str(variant), (self.tile_size, self.tile_size))))
-            except Exception as e:
+            except TypeError:
                 img = pygame.transform.scale(img, (self.tile_size, self.tile_size))
 
             world_pos = (tile['x'] * self.tile_size, tile['y'] * self.tile_size)
 
-            screen_pos = (int(world_pos[0] - self.game.camera.offset.x), int(world_pos[1] - self.game.camera.offset.y))
+            screen_pos = (int(world_pos[0] - camera_offset.x), int(world_pos[1] - camera_offset.y))
 
             surface.blit(img, screen_pos)
 
         for tile in self.tile_map.values():
             world_pos = (tile['x'] * self.tile_size, tile['y'] * self.tile_size)
 
-            screen_pos = (int(world_pos[0] - self.game.camera.offset.x), int(world_pos[1] - self.game.camera.offset.y))
+            screen_pos = (int(world_pos[0] - camera_offset.x), int(world_pos[1] - camera_offset.y))
             if 'solid' in tile.get('properties', []) and config.get("debug", {}).get("show_platform_hitboxes", False):
                 debug_rect = pygame.Rect(
                     screen_pos[0],
@@ -270,16 +273,16 @@ class TileMap:
 
         for sensor in self.sensors.values():
             if config.get("debug", {}).get("show_sensors", False):
-                rect = pygame.Rect(sensor["x"]*self.tile_size - self.game.camera.offset.x, sensor["y"]*self.tile_size - self.game.camera.offset.y, sensor["w"]*self.tile_size, sensor["h"]*self.tile_size)
+                rect = pygame.Rect(sensor["x"]*self.tile_size - camera_offset.x, sensor["y"]*self.tile_size - camera_offset.y, sensor["w"]*self.tile_size, sensor["h"]*self.tile_size)
                 pygame.draw.rect(surface, (255, 0, 0), rect, 1)
 
         for crystal in self.crystals:
-            crystal.draw(surface, (self.game.camera.offset.x, self.game.camera.offset.y))
+            crystal.draw(surface, (camera_offset.x, camera_offset.y))
 
         if self.overlay and self.rendered:
             overlay_img = pygame.image.load(self.overlay).convert_alpha()
             overlay_img = pygame.transform.scale(overlay_img, (self.width * self.tile_size, self.height * self.tile_size))
-            surface.blit(overlay_img, (-self.game.camera.offset.x, -self.game.camera.offset.y))
+            surface.blit(overlay_img, (-camera_offset.x, - camera_offset.y))
 
     def is_solid(self, pos, offset):
         x = pos[0] // self.tile_size
