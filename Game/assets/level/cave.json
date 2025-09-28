@@ -15,7 +15,7 @@
         "type": "enemies",
         "name": "Enemies",
         "data": [
-            {"x": 4, "y": 9, "z": 0, "id": 0, "type": "cave", "variant": 0, "properties": [""], "offset": [0, 0], "drop": 3},
+            {"x": 4, "y": 7, "z": 0, "id": 0, "type": "cave", "variant": 0, "properties": [], "move_axis": [1, 1], "offset": [0, 0], "drop": 5},
             {"x": 4, "y": 7, "z": 0, "id": 0, "type": "cave", "variant": 0, "properties": ["flying"], "move_axis": [1, 1], "offset": [0, 0], "drop": 5}
         ]
     },

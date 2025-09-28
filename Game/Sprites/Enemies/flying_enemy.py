@@ -159,7 +159,7 @@ class FlyingEnemy(Sprite):
         self.screen_pos.y = self.rect.y - camera_offset.y
 
     def draw(self, surf, offset=pygame.Vector2(0, 0)):
-        draw_pos = (self.rect.x - offset.x, self.rect.y - offset.y)
+        draw_pos = (self.rect.x - offset[0], self.rect.y - offset[1])
         surf.blit(self.image, draw_pos)
 
         if hasattr(self.game, 'config') and self.game.config.get('debug', {}).get('show_hitboxes', False):

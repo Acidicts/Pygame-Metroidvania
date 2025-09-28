@@ -3,7 +3,7 @@ import pygame
 
 
 class Enemy(PhysicsSprite):
-    def __init__(self,image=pygame.Surface((32, 32)), pos=(0, 0), game=None, tilemap=None, health=0, drop=0):
+    def __init__(self,image=pygame.Surface((32, 32)), pos=(0, 0), game=None, tilemap=None, health=3, drop=0):
         image.fill((255,0,0))
         super().__init__(image, pos, tilemap)
         self.velocity = pygame.math.Vector2(0, 0)
@@ -13,6 +13,9 @@ class Enemy(PhysicsSprite):
         self.health = health
         self.tilemap = tilemap
         self.game = game
+
+        # Add unique ID for SpriteGroup
+        self.id = f"enemy_{id(self)}"
 
         self.drop = drop
 
@@ -95,6 +98,7 @@ class Enemy(PhysicsSprite):
             self.health -= amount
             self.hit = pygame.time.get_ticks()
             self.vel.x = self.direction * -50
+            self.direction *= -1
 
             self.knockback_direction = -self.direction
             self.vel.x += self.knockback_direction * self.knockback_force
@@ -103,4 +107,8 @@ class Enemy(PhysicsSprite):
             self.stun_start_time = pygame.time.get_ticks()
 
     def draw(self, surface, offset=pygame.math.Vector2(0, 0)):
-        surface.blit(self.image, self.rect.topleft - offset)
+        screen_pos = (self.rect.x - offset[0], self.rect.y - offset[1])
+        if self.image:
+            surface.blit(self.image, screen_pos)
+        else:
+            pygame.draw.rect(surface, (255, 0, 0), (screen_pos[0], screen_pos[1], 32, 32))

@@ -72,7 +72,7 @@ class Game:
         maps = get_config()["tilemaps"]
 
         for name, tilemaps in self.tilemaps.items():
-            tilemaps.load_map(maps[name])
+            tilemaps.load_map("Game/assets/" + maps[name])
 
     def draw(self):
         self.screen.fill("#000F17")
@@ -82,10 +82,9 @@ class Game:
 
         for tilemap in self.tilemaps.values():
             if tilemap.rendered:
-                tilemap.render(self.screen, (0, 0), 5)
+                tilemap.render(self.screen, self.camera.offset, 5)
 
-                for enemy in tilemap.enemies:
-                    enemy.draw(self.screen, self.camera.offset)
+                tilemap.enemies.draw(self.screen, self.camera.offset)
 
         self.hud.draw(self.screen)
 
@@ -104,7 +103,7 @@ class Game:
         for tilemap in self.tilemaps.values():
             tilemap.update(dt)
             if tilemap.rendered:
-                for enemy in tilemap.enemies:
+                for enemy in tilemap.enemies.sprite_dict.values():
                     enemy.update(dt)
 
     def run(self):

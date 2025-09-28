@@ -209,14 +209,9 @@ class Player(Sprite):
 
         if self.timers["invulnerability"] <= 0 and not self.attributes["damaged"]:
             for tilemap in self.game.tilemaps.values():
-                for crystal in tilemap.crystals:
-                    if self.rect.colliderect(crystal.rect):
-                        self.crystals += crystal.value
-                        tilemap.crystals.remove(crystal)
-                        break
                 if not tilemap.rendered:
                     continue
-                for enemy in tilemap.enemies:
+                for enemy in tilemap.enemies.sprite_dict.values():
                     if self.rect.colliderect(enemy.rect):
                         self.attributes["health"] -= 1
                         self.attributes["damaged"] = True
@@ -254,25 +249,31 @@ class Player(Sprite):
                 if self.attributes["flipped"]:
                     for tilemap in self.game.tilemaps.values():
                         if tilemap.rendered:
-                            for enemy in tilemap.enemies:
+                            for enemy in tilemap.enemies.sprite_dict.values():
                                 rect = enemy.rect.copy()
                                 rect.topleft -= self.game.camera.offset
                                 if self.attacking_hitboxes["slash_left"].colliderect(rect):
                                     enemy.take_damage(1)
                                     if enemy.health <= 0:
-                                        enemy.tilemap.crystals.append(Crystal((enemy.rect.x, enemy.rect.y), enemy.drop, self.game))
+                                        crystal = Crystal((enemy.rect.x, enemy.rect.y), enemy.drop, self.game)
+                                        crystal.tilemap = enemy.tilemap
+                                        enemy.tilemap.crystals.append(crystal)
                                         tilemap.enemies.remove(enemy)
+                                        break
                 else:
                     for tilemap in self.game.tilemaps.values():
                         if tilemap.rendered:
-                            for enemy in tilemap.enemies:
+                            for enemy in tilemap.enemies.sprite_dict.values():
                                 rect = enemy.rect.copy()
                                 rect.topleft -= self.game.camera.offset
                                 if self.attacking_hitboxes["slash_right"].colliderect(rect):
                                     enemy.take_damage(1)
                                     if enemy.health <= 0:
-                                        enemy.tilemap.crystals.append(Crystal((enemy.rect.x, enemy.rect.y), enemy.drop, self.game))
+                                        crystal = Crystal((enemy.rect.x, enemy.rect.y), enemy.drop, self.game)
+                                        crystal.tilemap = enemy.tilemap
+                                        enemy.tilemap.crystals.append(crystal)
                                         tilemap.enemies.remove(enemy)
+                                        break
 
                 self.attributes["slash_damage_frames"] += 1
 

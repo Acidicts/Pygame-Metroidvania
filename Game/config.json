@@ -1,17 +1,11 @@
 {
-  "layers": [
-    0,
-    5,
-    10
-  ],
-  "resolution": [800, 600],
-  "debug": {
-    "show_collision_boxes": false,
-    "show_platform_hitboxes": false,
-    "show_sensors": false
-  },
-  "tilemaps" : {
-    "cave": "Game/assets/level/cave.json",
-    "mossy": "Game/assets/level/mossy.json"
-  }
+    "resolution": [800, 600],
+    "tilemaps": {
+        "cave": "level/cave.json",
+        "mossy": "level/mossy.json"
+    },
+    "debug": {
+        "show_collision_boxes": false
+    }
 }
+

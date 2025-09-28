@@ -4,6 +4,7 @@ from Game.Sprites.Enemies.flying_enemy import FlyingEnemy
 from Game.utils.config import *
 from Game.Sprites.Enemies.enemy import Enemy
 from Game.Sprites.Inanimate.chest import Chest
+from Game.utils.spritegroup import SpriteGroup
 
 AUTOTILE_MAP = {
     tuple(sorted([(1, 0), (0, 1)])): 0,
@@ -59,10 +60,10 @@ class TileMap:
         self.rendered = rendered
 
         self.sensors = {}
-        self.enemies = []
-        self.crystals = []
-        self.items = []
-        self.chests = []
+        self.enemies = SpriteGroup()
+        self.crystals = SpriteGroup()
+        self.items = SpriteGroup()
+        self.chests = SpriteGroup()
 
         self.overlay = overlay
 
@@ -87,9 +88,12 @@ class TileMap:
                 for enemy in layer['data']:
                     enemy_id = enemy.get("id")
                     if enemy_id is not None and "flying" not in enemy["properties"]:
-                        self.enemies.append(Enemy(pos=(int(enemy['x']) * self.tile_size + self.pos.x * self.tile_size, int(enemy['y']) * self.tile_size + self.pos.y * self.tile_size), game=self.game, tilemap=self, drop=enemy["drop"]))
+                        enemy_pos = (int(enemy['x']) * self.tile_size + self.pos.x * self.tile_size,
+                                   int(enemy['y']) * self.tile_size + self.pos.y * self.tile_size)
+                        new_enemy = Enemy(pos=enemy_pos, game=self.game, tilemap=self, drop=enemy["drop"])
+                        self.enemies.append(new_enemy)
 
-                    if "flying" in enemy["properties"]:
+                    elif "flying" in enemy["properties"]:
                         self.enemies.append(FlyingEnemy(pos=(int(enemy['x']) * self.tile_size + self.pos.x * self.tile_size, int(enemy['y']) * self.tile_size + self.pos.y * self.tile_size), game=self.game, tilemaps=[self], tilemap=self, move_axis=pygame.Vector2(*enemy["move_axis"]), drop=enemy["drop"]))
 
             if layer['type'] == 'sensor_layer':
@@ -213,6 +217,7 @@ class TileMap:
         return tiles
 
     def render(self, surface, camera_offset, layer):
+        camera_offset = pygame.math.Vector2(camera_offset)
         from Game.utils.config import get_config
         config = get_config()
         screen_height = config["resolution"][1]
@@ -224,11 +229,11 @@ class TileMap:
                 if height > 0:
                     pygame.draw.rect(surface, (0, 0, 0), (x, y, self.tile_size, self.tile_size))
 
-        for chest in self.chests:
-            chest.draw(surface, (camera_offset.x, camera_offset.y))
+        self.chests.draw(surface, camera_offset)
 
-        for item in self.items:
-            item.draw(surface, (camera_offset.x, camera_offset.y))
+        self.items.draw(surface, (camera_offset.x, camera_offset.y))
+
+        self.enemies.draw(surface, (camera_offset.x, camera_offset.y))
 
         for tile in self.tile_map.values():
             if tile.get("z") != layer:
@@ -243,13 +248,17 @@ class TileMap:
                 continue
             variant = int(tile.get('variant'))
 
-            img = self.game.assets[env][ttype].get_images_list()[variant]
+            try:
+                img = self.game.assets[env][ttype].get_images_list()[variant]
+            except (KeyError, IndexError):
+                img = None
+
             if img is None:
                 continue
 
             try:
                 img = pygame.transform.scale(img, (scale_sizing[env][ttype].get(str(variant), (self.tile_size, self.tile_size))))
-            except TypeError:
+            except (TypeError, KeyError):
                 img = pygame.transform.scale(img, (self.tile_size, self.tile_size))
 
             world_pos = (tile['x'] * self.tile_size, tile['y'] * self.tile_size)
@@ -276,8 +285,7 @@ class TileMap:
                 rect = pygame.Rect(sensor["x"]*self.tile_size - camera_offset.x, sensor["y"]*self.tile_size - camera_offset.y, sensor["w"]*self.tile_size, sensor["h"]*self.tile_size)
                 pygame.draw.rect(surface, (255, 0, 0), rect, 1)
 
-        for crystal in self.crystals:
-            crystal.draw(surface, (camera_offset.x, camera_offset.y))
+        self.crystals.draw(surface, (camera_offset.x, camera_offset.y))
 
         if self.overlay and self.rendered:
             overlay_img = pygame.image.load(self.overlay).convert_alpha()
@@ -302,14 +310,11 @@ class TileMap:
         return False
 
     def update(self, dt):
-        for chest in self.chests:
-            chest.update(dt)
+        self.chests.update(dt)
 
-        for item in self.items:
-            item.update(dt)
+        self.items.update(dt)
 
-        for crystal in self.crystals:
-            crystal.update(dt)
+        self.crystals.update(dt)
 
         for sensor in self.sensors.values():
             if sensor["type"] == "render":

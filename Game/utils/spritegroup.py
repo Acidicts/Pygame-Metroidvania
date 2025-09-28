@@ -1,4 +1,3 @@
-
 class SpriteGroup:
     def __init__(self):
         self.sprite_dict = {}
@@ -7,6 +6,13 @@ class SpriteGroup:
         for sprite in sprites:
             if hasattr(sprite, 'id'):
                 self.sprite_dict[sprite.id] = sprite
+
+    def append(self, sprite):
+        if hasattr(sprite, 'id'):
+            self.sprite_dict[sprite.id] = sprite
+        else:
+            self.sprite_dict[len(self.sprite_dict)] = sprite
+
 
     def remove(self, *sprites):
         for sprite in sprites:
@@ -21,11 +27,8 @@ class SpriteGroup:
 
     def draw(self, surface, offset):
         for sprite in self.sprite_dict.values():
-            x, y = sprite.rect.topleft
-            x -= offset[0]
-            y -= offset[1]
-            surface.blit(sprite.image, x, y)
+            sprite.draw(surface, offset)
 
     def update(self, dt):
-        for sprite in self.sprite_dict.values():
+        for sprite in list(self.sprite_dict.values()):
             sprite.update(dt)

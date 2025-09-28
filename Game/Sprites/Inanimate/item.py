@@ -21,7 +21,9 @@ class Item(Sprite):
                 self.game.player.crystals += int(self.item[0].split(" ")[1])
             self.collected = True
             self.tilemap.items.remove(self)
+            return True
 
     def update(self, dt):
         if self.rect.colliderect(self.game.player.rect):
-            self.collect()
+            if self.collect():
+                return True
