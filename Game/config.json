@@ -5,7 +5,9 @@
         "mossy": "level/mossy.json"
     },
     "debug": {
-        "show_collision_boxes": false
+        "show_collision_boxes": false,
+        "show_sensors": false,
+        "show_platform_hitboxes": true
     }
 }
 

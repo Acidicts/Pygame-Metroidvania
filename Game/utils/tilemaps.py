@@ -102,10 +102,10 @@ class TileMap:
                     if sensor_id is not None:
                         self.sensors[sensor_id] = {
                             "type": sensor['type'],
-                            'x': int(sensor['x']),
-                            'y': int(sensor['y']),
-                            'w': int(sensor['w']),
-                            'h': int(sensor['h']),
+                            'x': float(sensor['x']),
+                            'y': float(sensor['y']),
+                            'w': float(sensor['w']),
+                            'h': float(sensor['h']),
                             'properties': sensor.get('properties', []),
                             'triggered': False,
                             "id": sensor_id
@@ -116,21 +116,28 @@ class TileMap:
                     if "repeat" in tile["properties"]:
                         for x in range(tile["w"]):
                             for y in range(tile["h"]):
-                                if tile["render_cut"][0] == 0 and x != tile["w"] - 1:
-                                    world_x = int(tile['x'] + x)
-                                    world_y = int(tile['y'] + y)
+                                should_render = True
+                                if "alternate" in tile["properties"]:
+                                    should_render = (x & int(tile["alternate"])) == 0
+
+                                world_x = int(tile['x'] + x)
+                                world_y = int(tile['y'] + y)
+                                tile_variant = tile["variant"]
+
+                                if should_render:
+                                    if tile["render_cut"][0] != 0 and x == tile["w"] - 1:
+                                        tile_variant = None
+
                                     self.tile_map[(world_x, world_y)] = {
                                         'x': world_x,
                                         'y': world_y,
                                         'z': int(tile['z']),
                                         'environment': data['environment'],
                                         'type': tile["type"],
-                                        'variant': tile["variant"],
+                                        'variant': tile_variant,
                                         'properties': tile["properties"]
                                     }
-                                elif tile["render_cut"][0] != 0 and x == tile["w"] - 1:
-                                    world_x = int(tile['x'] + x)
-                                    world_y = int(tile['y'] + y)
+                                else:
                                     self.tile_map[(world_x, world_y)] = {
                                         'x': world_x,
                                         'y': world_y,
@@ -140,34 +147,82 @@ class TileMap:
                                         'variant': None,
                                         'properties': tile["properties"]
                                     }
-                                elif tile["render_cut"][0] != 0 and x != tile["w"] - 1:
-                                    world_x = int(tile['x'] + x)
-                                    world_y = int(tile['y'] + y)
+
+                                if tile_variant is None:
                                     self.tile_map[(world_x, world_y)] = {
                                         'x': world_x,
                                         'y': world_y,
                                         'z': int(tile['z']),
                                         'environment': data['environment'],
                                         'type': tile["type"],
-                                        'variant': tile["variant"],
+                                        'variant': None,
                                         'properties': tile["properties"]
                                     }
-                                if "dark" in tile["properties"]:
-                                    depth = int(tile["solid_depth"])
-                                    for x1 in range(tile["w"]):
+
+                                if "dark" in tile["properties"] and should_render:
+                                    depth = int(tile["dark_depth"])
+                                    try:
+                                        solid = int(tile["solid_depth"])
+                                    except ValueError:
+                                        solid = depth
+                                    if solid <= depth:
                                         for y1 in range(depth):
-                                            tile_x = int(tile['x'] + x1)
+                                            tile_x = int(tile['x'] + x)
                                             tile_y = int(tile['y'] + y1)
                                             if (tile_x, tile_y) not in self.tile_map:
+                                                if y1 <= solid:
+                                                    self.tile_map[(tile_x, tile_y)] = {
+                                                        'x': tile_x,
+                                                        'y': tile_y,
+                                                        'z': int(tile['z']),
+                                                        'environment': data['environment'],
+                                                        'type': tile["type"],
+                                                        'variant': "dark",
+                                                        'properties': ["solid"],
+                                                    }
+                                                else:
+                                                    self.tile_map[(tile_x, tile_y)] = {
+                                                        'x': tile_x,
+                                                        'y': tile_y,
+                                                        'z': int(tile['z']),
+                                                        'environment': data['environment'],
+                                                        'type': tile["type"],
+                                                        'variant': "dark",
+                                                        'properties': [],
+                                                    }
+                                    else:
+                                        for y1 in range(solid):
+                                            tile_x = int(tile['x'] + x)
+                                            tile_y = int(tile['y'] + y1)
+                                            if (tile_x, tile_y) not in self.tile_map:
+                                                if y1 < solid:
+                                                    self.tile_map[(tile_x, tile_y)] = {
+                                                        'x': tile_x,
+                                                        'y': tile_y,
+                                                        'z': int(tile['z']),
+                                                        'environment': data['environment'],
+                                                        'type': tile["type"],
+                                                        'variant': None,
+                                                        'properties': ["solid"],
+                                                    }
+
+                                if tile["solid_depth"] and "dark_depth" not in tile["properties"]:
+                                    solid = int(tile["solid_depth"])
+                                    for y1 in range(solid):
+                                        tile_x = int(tile['x'] + x)
+                                        tile_y = int(tile['y'] + y1)
+                                        if (tile_x, tile_y) not in self.tile_map:
+                                            if y1 < solid:
                                                 self.tile_map[(tile_x, tile_y)] = {
                                                     'x': tile_x,
                                                     'y': tile_y,
                                                     'z': int(tile['z']),
                                                     'environment': data['environment'],
                                                     'type': tile["type"],
-                                                    'variant': "dark",
+                                                    'variant': None,
                                                     'properties': ["solid"],
                                                 }
+
                     else:
                         x, y, z = tile['x'], tile['y'], tile['z']
                         self.tile_map[(x, y)] = {
@@ -202,6 +257,11 @@ class TileMap:
             neighbor_pos = (grid_x + dx, grid_y + dy)
             if neighbor_pos in self.tile_map:
                 neighbor_tile = self.tile_map[neighbor_pos]
+
+                if neighbor_tile.get('variant') is None:
+                    tiles[(dx, dy)] = None
+                    continue
+
                 props = neighbor_tile.get('properties', [])
                 try:
                     is_solid = ('solid' in props)

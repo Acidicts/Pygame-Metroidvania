@@ -67,7 +67,7 @@ class Game:
         }
 
         self.tilemaps["cave"] = TileMap(self, tile_size=48, pos=(0, 0), rendered=True)
-        self.tilemaps["mossy"] = TileMap(self, tile_size=48, pos=(18, 0), rendered=False)
+        self.tilemaps["mossy"] = TileMap(self, tile_size=48, pos=(30, 0), rendered=False)
 
         maps = get_config()["tilemaps"]
 
