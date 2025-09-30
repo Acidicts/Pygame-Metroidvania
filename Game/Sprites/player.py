@@ -260,6 +260,13 @@ class Player(Sprite):
                                         enemy.tilemap.crystals.append(crystal)
                                         tilemap.enemies.remove(enemy)
                                         break
+
+                            for breakable in tilemap.breakables.sprite_dict.values():
+                                rect = breakable.rect.copy()
+                                rect.topleft -= self.game.camera.offset
+                                if self.attacking_hitboxes["slash_left"].colliderect(rect):
+                                    breakable.take_damage(1)
+                                    break
                 else:
                     for tilemap in self.game.tilemaps.values():
                         if tilemap.rendered:
@@ -274,6 +281,13 @@ class Player(Sprite):
                                         enemy.tilemap.crystals.append(crystal)
                                         tilemap.enemies.remove(enemy)
                                         break
+
+                            for breakable in tilemap.breakables.sprite_dict.values():
+                                rect = breakable.rect.copy()
+                                rect.topleft -= self.game.camera.offset
+                                if self.attacking_hitboxes["slash_right"].colliderect(rect):
+                                    breakable.take_damage(1)
+                                    break
 
                 self.attributes["slash_damage_frames"] += 1
 
@@ -485,6 +499,7 @@ class Player(Sprite):
             right_tile = int(self.rect.right - 1 - tilemap.pos.x * tilemap.tile_size) // tilemap.tile_size
             bottom_tile = int (self.rect.bottom - tilemap.pos.y * tilemap.tile_size) // tilemap.tile_size
 
+            # Check tiles
             for tile_x in range(left_tile, right_tile + 1):
                 original_tile_x = tile_x
                 original_tile_y = bottom_tile
@@ -496,6 +511,15 @@ class Player(Sprite):
                             tile_top = tile_data['y'] * tilemap.tile_size
                             if abs(self.rect.bottom - tile_top) <= 2:
                                 return True
+
+            # Check breakables
+            for breakable in tilemap.breakables.sprite_dict.values():
+                if breakable.is_solid():
+                    if abs(self.rect.bottom - breakable.rect.top) <= 2:
+                        # Check if player is actually above the breakable
+                        if (self.rect.right > breakable.rect.left and
+                            self.rect.left < breakable.rect.right):
+                            return True
         return False
 
     def check_wall_collisions(self):
@@ -525,6 +549,11 @@ class Player(Sprite):
                             tile_left = tile_data['x'] * tilemap.tile_size
                             if self.rect.right > tile_left and self.rect.left < (tile_data['x'] + 1) * tilemap.tile_size:
                                 return True
+
+            # Check breakable wall collisions
+            for breakable in tilemap.breakables.sprite_dict.values():
+                if breakable.is_solid() and self.rect.colliderect(breakable.rect):
+                    return True
         return False
 
     def check_ground_collisions(self):
@@ -572,6 +601,15 @@ class Player(Sprite):
                                     self.rect.left < tile_right):
                                     self.rect.top = tile_bottom
                                     return True
+
+            for breakable in tilemap.breakables.sprite_dict.values():
+                if breakable.is_solid() and self.rect.colliderect(breakable.rect):
+                    if self.velocity.y > 0 and self.rect.bottom > breakable.rect.top and self.rect.top < breakable.rect.top:
+                        self.rect.bottom = breakable.rect.top
+                        return True
+                    elif self.velocity.y < 0 and self.rect.top < breakable.rect.bottom and self.rect.bottom > breakable.rect.bottom:
+                        self.rect.top = breakable.rect.bottom
+                        return True
         return False
 
     def check_collisions(self):

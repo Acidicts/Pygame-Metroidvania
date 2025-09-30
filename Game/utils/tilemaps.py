@@ -4,6 +4,7 @@ from Game.Sprites.Enemies.flying_enemy import FlyingEnemy
 from Game.utils.config import *
 from Game.Sprites.Enemies.enemy import Enemy
 from Game.Sprites.Inanimate.chest import Chest
+from Game.Sprites.Inanimate.breakable import Breakable
 from Game.utils.spritegroup import SpriteGroup
 
 AUTOTILE_MAP = {
@@ -64,6 +65,7 @@ class TileMap:
         self.crystals = SpriteGroup()
         self.items = SpriteGroup()
         self.chests = SpriteGroup()
+        self.breakables = SpriteGroup()
 
         self.overlay = overlay
 
@@ -80,6 +82,10 @@ class TileMap:
         self.tile_size = data['tile_size']
 
         for layer in data['layers']:
+            if layer['type'] == 'breakables':
+                for breakable in layer['data']:
+                    self.breakables.append(Breakable(image=self.game.assets[data['environment']][breakable["type"]].get_images_list()[breakable["variant"]], pos=(int(breakable['x']) * self.tile_size + self.pos.x * self.tile_size, int(breakable['y']) * self.tile_size + self.pos.y * self.tile_size), tilemap=self, health=3, id=breakable.get("id"), properties=breakable.get("properties", [])))
+
             if layer['type'] == 'chests':
                 for chest in layer['data']:
                     self.chests.append(Chest(pos=(int(chest['x']) * self.tile_size + self.pos.x * self.tile_size, int(chest['y']) * self.tile_size + self.pos.y * self.tile_size), game=self.game, tilemap=self, contains=chest["contains"]))
@@ -295,6 +301,8 @@ class TileMap:
 
         self.enemies.draw(surface, (camera_offset.x, camera_offset.y))
 
+        self.breakables.draw(surface, (camera_offset.x, camera_offset.y))
+
         for tile in self.tile_map.values():
             if tile.get("z") != layer:
                 continue
@@ -375,6 +383,8 @@ class TileMap:
         self.items.update(dt)
 
         self.crystals.update(dt)
+
+        self.breakables.update(dt)
 
         for sensor in self.sensors.values():
             if sensor["type"] == "render":

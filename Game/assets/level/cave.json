@@ -5,6 +5,13 @@
   "environment": "cave",
   "layers": [
     {
+      "type": "breakables",
+      "name": "Breakables",
+      "data": [
+            {"x": 10, "y": 8, "z": 5, "type": "big_rocks", "variant": 0, "properties": [], "offset": [0, 0], "breakable_id": 0}
+          ]
+    },
+    {
         "type": "chests",
         "name": "Chests",
         "data": [

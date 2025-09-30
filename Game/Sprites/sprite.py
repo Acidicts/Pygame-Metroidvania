@@ -56,6 +56,7 @@ class PhysicsSprite(Sprite):
             top_tile = int(self.rect.top - tilemap.pos.y * tilemap.tile_size) // tilemap.tile_size
             bottom_tile = int(self.rect.bottom - 1 - tilemap.pos.y * tilemap.tile_size) // tilemap.tile_size
 
+            # Check tile collisions
             for tile_y in range(top_tile, bottom_tile + 1):
                 for tile_key, tile_data in tilemap.tile_map.items():
                     if (tile_data['x'] - tilemap.pos.x == left_tile and
@@ -80,6 +81,22 @@ class PhysicsSprite(Sprite):
                                 self.collisions["right"] = True
                                 collision_occurred = True
 
+            # Check breakable collisions
+            for breakable in tilemap.breakables.sprite_dict.values():
+                if breakable.is_solid() and self.rect.colliderect(breakable.rect):
+                    # Left collision
+                    if self.vel.x > 0 and self.rect.right > breakable.rect.left and self.rect.left < breakable.rect.left:
+                        self.rect.right = breakable.rect.left
+                        self.vel.x = 0
+                        self.collisions["right"] = True
+                        collision_occurred = True
+                    # Right collision
+                    elif self.vel.x < 0 and self.rect.left < breakable.rect.right and self.rect.right > breakable.rect.right:
+                        self.rect.left = breakable.rect.right
+                        self.vel.x = 0
+                        self.collisions["left"] = True
+                        collision_occurred = True
+
         if not collision_occurred:
             self.collisions["left"] = False
             self.collisions["right"] = False
@@ -101,7 +118,6 @@ class PhysicsSprite(Sprite):
             top_tile = int(self.rect.top - tilemap.pos.y * tilemap.tile_size) // tilemap.tile_size
             bottom_tile = int(self.rect.bottom - 1 - tilemap.pos.y * tilemap.tile_size) // tilemap.tile_size
 
-            # Check ground collisions (falling down)
             if self.vel.y >= 0:
                 for tile_x in range(left_tile, right_tile + 1):
                     for tile_key, tile_data in tilemap.tile_map.items():
@@ -124,6 +140,7 @@ class PhysicsSprite(Sprite):
                                     self.collisions["bottom"] = True
                                     collision_occurred = True
 
+            # Check tile ceiling collisions (moving up)
             if self.vel.y < 0:
                 for tile_x in range(left_tile, right_tile + 1):
                     for tile_key, tile_data in tilemap.tile_map.items():
@@ -141,6 +158,19 @@ class PhysicsSprite(Sprite):
                                     self.vel.y = 0
                                     self.collisions["top"] = True
                                     collision_occurred = True
+
+            for breakable in tilemap.breakables.sprite_dict.values():
+                if breakable.is_solid() and self.rect.colliderect(breakable.rect):
+                    if self.vel.y > 0 and self.rect.bottom > breakable.rect.top and self.rect.top < breakable.rect.top:
+                        self.rect.bottom = breakable.rect.top
+                        self.vel.y = 0
+                        self.collisions["bottom"] = True
+                        collision_occurred = True
+                    elif self.vel.y < 0 and self.rect.top < breakable.rect.bottom and self.rect.bottom > breakable.rect.bottom:
+                        self.rect.top = breakable.rect.bottom
+                        self.vel.y = 0
+                        self.collisions["top"] = True
+                        collision_occurred = True
 
         if not collision_occurred:
             self.collisions["bottom"] = False
